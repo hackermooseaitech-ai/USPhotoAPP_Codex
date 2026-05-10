@@ -1,0 +1,102 @@
+<svg width="880" height="680" viewBox="0 0 880 680" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Mechanical eagle visa photo emblem</title>
+  <desc id="desc">A literal seal-style eagle converted into a digital mechanical eagle with metal wings, shield, stars, olive branch, and arrows.</desc>
+  <defs>
+    <linearGradient id="metal" x1="230" y1="130" x2="650" y2="570" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.45" stop-color="#CBD5E1"/>
+      <stop offset="1" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="darkMetal" x1="160" y1="220" x2="720" y2="510" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64748B"/>
+      <stop offset="0.55" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="circuitBlue" x1="250" y1="160" x2="650" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DD3FC"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="shieldRed" x1="370" y1="370" x2="510" y2="540" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EF4444"/>
+      <stop offset="1" stop-color="#991B1B"/>
+    </linearGradient>
+    <filter id="blueLight" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.1 0 0 0 0 0.55 0 0 0 0 1 0 0 0 0.65 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
+    </filter>
+  </defs>
+
+  <rect width="880" height="680" fill="#F8FAFC"/>
+  <circle cx="440" cy="337" r="270" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <circle cx="440" cy="337" r="235" fill="#F8FAFC" stroke="#0F172A" stroke-width="4"/>
+
+  <!-- Banner, kept subtle so the image reads like the reference seal. -->
+  <path d="M236 186C304 153 378 139 440 139C502 139 576 153 644 186L624 219C566 194 502 182 440 182C378 182 314 194 256 219L236 186Z" fill="#F1F5F9" stroke="#334155" stroke-width="3"/>
+  <path d="M296 188L331 181M549 181L584 188" stroke="#38BDF8" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Left mechanical wing. -->
+  <path d="M420 285C350 214 260 184 166 216C223 244 276 280 318 332C263 310 211 310 151 342C208 365 259 399 302 453C258 446 220 458 181 494C242 502 311 489 374 438L420 285Z" fill="url(#darkMetal)" stroke="#0F172A" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M392 291L201 229M381 321L178 343M366 356L218 477M346 396L272 485" stroke="#94A3B8" stroke-width="4" stroke-linecap="round"/>
+  <path d="M383 274L321 320L248 255M364 336L303 384L225 351M342 390L290 434L229 413" stroke="#1E293B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M333 247L333 214L307 199M304 378L269 378L249 398M290 431L252 441" stroke="#38BDF8" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="333" cy="214" r="6" fill="#38BDF8"/>
+  <circle cx="269" cy="378" r="6" fill="#38BDF8"/>
+  <circle cx="252" cy="441" r="5" fill="#38BDF8"/>
+
+  <!-- Right mechanical wing. -->
+  <path d="M460 285C530 214 620 184 714 216C657 244 604 280 562 332C617 310 669 310 729 342C672 365 621 399 578 453C622 446 660 458 699 494C638 502 569 489 506 438L460 285Z" fill="url(#darkMetal)" stroke="#0F172A" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M488 291L679 229M499 321L702 343M514 356L662 477M534 396L608 485" stroke="#94A3B8" stroke-width="4" stroke-linecap="round"/>
+  <path d="M497 274L559 320L632 255M516 336L577 384L655 351M538 390L590 434L651 413" stroke="#1E293B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M547 247L547 214L573 199M576 378L611 378L631 398M590 431L628 441" stroke="#38BDF8" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="547" cy="214" r="6" fill="#38BDF8"/>
+  <circle cx="611" cy="378" r="6" fill="#38BDF8"/>
+  <circle cx="628" cy="441" r="5" fill="#38BDF8"/>
+
+  <!-- Mechanical eagle body and head. -->
+  <path d="M440 143C489 187 513 250 503 330C495 397 470 450 440 489C410 450 385 397 377 330C367 250 391 187 440 143Z" fill="url(#metal)" stroke="#0F172A" stroke-width="5"/>
+  <path d="M405 236C426 216 454 216 475 236C456 231 424 231 405 236Z" fill="#0F172A"/>
+  <circle cx="421" cy="251" r="7" fill="#38BDF8" filter="url(#blueLight)"/>
+  <circle cx="459" cy="251" r="7" fill="#38BDF8" filter="url(#blueLight)"/>
+  <path d="M440 260L495 288L440 320L385 288L440 260Z" fill="#F59E0B" stroke="#0F172A" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M401 330C426 346 454 346 479 330C474 391 462 434 440 466C418 434 406 391 401 330Z" fill="#E2E8F0" stroke="#0F172A" stroke-width="4"/>
+  <path d="M440 155V212M440 323V453M409 343L440 366L471 343" stroke="#38BDF8" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Star circle above the eagle head. -->
+  <circle cx="440" cy="139" r="54" fill="#1D4ED8" stroke="#0F172A" stroke-width="4"/>
+  <g fill="#FFFFFF">
+    <path d="M440 96L448 118L471 118L452 132L459 154L440 141L421 154L428 132L409 118L432 118L440 96Z"/>
+    <path d="M401 125L406 139L421 139L409 148L414 163L401 154L388 163L393 148L381 139L396 139L401 125Z"/>
+    <path d="M479 125L484 139L499 139L487 148L492 163L479 154L466 163L471 148L459 139L474 139L479 125Z"/>
+    <path d="M421 161L425 173L438 173L428 181L432 194L421 186L410 194L414 181L404 173L417 173L421 161Z"/>
+    <path d="M459 161L463 173L476 173L466 181L470 194L459 186L448 194L452 181L442 173L455 173L459 161Z"/>
+  </g>
+
+  <!-- Shield like the source image, with digital polish. -->
+  <path d="M346 370H534V512C511 544 481 563 440 576C399 563 369 544 346 512V370Z" fill="#FFFFFF" stroke="#0F172A" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M346 370H534V425H346V370Z" fill="#1D4ED8"/>
+  <path d="M376 425V528M410 425V551M440 425V565M470 425V551M504 425V528" stroke="url(#shieldRed)" stroke-width="22"/>
+  <path d="M374 397H506" stroke="#93C5FD" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="392" cy="397" r="4" fill="#FFFFFF"/>
+  <circle cx="424" cy="397" r="4" fill="#FFFFFF"/>
+  <circle cx="456" cy="397" r="4" fill="#FFFFFF"/>
+  <circle cx="488" cy="397" r="4" fill="#FFFFFF"/>
+  <path d="M346 370H534V512C511 544 481 563 440 576C399 563 369 544 346 512V370Z" stroke="#0F172A" stroke-width="5" stroke-linejoin="round"/>
+
+  <!-- Olive branch and arrows, kept literal. -->
+  <path d="M265 501C221 496 176 516 143 555" stroke="#047857" stroke-width="8" stroke-linecap="round"/>
+  <path d="M195 514C187 490 168 480 145 482C153 506 172 517 195 514Z" fill="#10B981"/>
+  <path d="M224 507C218 482 200 469 176 468C183 494 201 508 224 507Z" fill="#059669"/>
+  <path d="M236 530C211 526 194 535 182 557C208 562 225 552 236 530Z" fill="#10B981"/>
+  <circle cx="156" cy="547" r="8" fill="#F59E0B"/>
+
+  <path d="M615 502L742 441M625 521L760 464M598 485L723 420" stroke="#475569" stroke-width="6" stroke-linecap="round"/>
+  <path d="M723 420L721 452L751 437Z" fill="#475569"/>
+  <path d="M742 441L740 473L770 458Z" fill="#475569"/>
+  <path d="M760 464L758 496L788 481Z" fill="#475569"/>
+
+  <!-- Mechanical joints at the feet. -->
+  <path d="M399 564L373 595M481 564L507 595" stroke="#0F172A" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="399" cy="564" r="9" fill="#38BDF8" stroke="#0F172A" stroke-width="3"/>
+  <circle cx="481" cy="564" r="9" fill="#38BDF8" stroke="#0F172A" stroke-width="3"/>
+</svg>

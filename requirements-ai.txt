@@ -1,0 +1,3 @@
+-r requirements.txt
+rembg[cpu]>=2.0
+mediapipe>=0.10

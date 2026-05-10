@@ -1,0 +1,9 @@
+{
+  "name": "Hacker Moose - AI US Visa Photo Generator",
+  "short_name": "Hacker Moose",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#047857",
+  "icons": []
+}

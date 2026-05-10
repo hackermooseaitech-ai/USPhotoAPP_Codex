@@ -1,0 +1,37 @@
+<form
+  hx-post="{% url 'orders:upload' %}"
+  hx-target="#upload-panel"
+  hx-swap="innerHTML"
+  enctype="multipart/form-data"
+  class="space-y-5"
+>
+  {% csrf_token %}
+  <div>
+    <h2 class="text-xl font-semibold" data-i18n="formTitle">Create your preview</h2>
+    <p class="mt-2 text-sm leading-6 text-zinc-600" data-i18n="formBody">Use a clear front-facing portrait. The app will crop, align, and prepare the download files.</p>
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="rounded-md bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <label class="block">
+    <span class="mb-2 block text-sm font-medium" data-i18n="emailLabel">Delivery email</span>
+    {{ form.email }}
+    {% for error in form.email.errors %}<span class="mt-1 block text-sm text-red-700">{{ error }}</span>{% endfor %}
+  </label>
+
+  <label class="block">
+    <span class="mb-2 block text-sm font-medium" data-i18n="photoLabel">Portrait photo</span>
+    {{ form.original_image }}
+    {% for error in form.original_image.errors %}<span class="mt-1 block text-sm text-red-700">{{ error }}</span>{% endfor %}
+  </label>
+
+  <button class="inline-flex w-full items-center justify-center rounded-md bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800" type="submit">
+    <span data-i18n="uploadButton">Generate watermarked preview</span>
+  </button>
+
+  <div class="htmx-indicator rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" data-i18n="processing">
+    Processing photo. This can take a few seconds when AI background removal is enabled.
+  </div>
+</form>

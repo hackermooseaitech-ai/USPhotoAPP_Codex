@@ -1,0 +1,9 @@
+Your Hacker Moose US visa photo is ready.
+
+Download 600x600 JPEG:
+{{ photo_url }}
+
+Download 4x6 print template:
+{{ print_url }}
+
+Order ID: {{ order.id }}
