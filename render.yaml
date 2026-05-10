@@ -1,18 +1,22 @@
 services:
   - type: web
-    name: hacker-moose-us-visa-photo
+    name: usphotoapp-codex
     runtime: python
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate"
     startCommand: "gunicorn hacker_moose.wsgi:application"
     envVars:
       - key: DJANGO_DEBUG
         value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "usphotoapp-codex.onrender.com"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://usphotoapp-codex.onrender.com"
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: STRIPE_PRICE_CENTS
         value: "399"
       - key: SITE_URL
-        sync: false
+        value: "https://usphotoapp-codex.onrender.com"
       - key: DATABASE_URL
         sync: false
       - key: STRIPE_SECRET_KEY
