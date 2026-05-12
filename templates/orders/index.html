@@ -1,31 +1,58 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-<section class="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-5 py-10 lg:grid-cols-[0.92fr_1.08fr]">
-  <div>
-    <label class="mb-6 inline-flex items-center gap-3 text-sm font-medium text-zinc-700">
-      <span data-i18n="languageLabel">Language</span>
-      <select id="language-select" class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20">
-        <option value="en">English</option>
-        <option value="zh">中文</option>
-        <option value="fr">Français</option>
-        <option value="ja">日本語</option>
-        <option value="ru">Русский</option>
-        <option value="ar">العربية</option>
-      </select>
-    </label>
-    <p class="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Hacker Moose</p>
+<section class="mx-auto grid min-h-screen max-w-6xl items-start gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-12 lg:px-8 lg:py-10">
+  <div class="mx-auto w-full max-w-xl lg:mx-0">
+    <div class="mb-5 flex flex-wrap items-center gap-3 sm:mb-6">
+      <label class="inline-flex items-center gap-3 text-sm font-medium text-zinc-700">
+        <span data-i18n="languageLabel">Language</span>
+        <select id="language-select" class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+          <option value="fr">Français</option>
+          <option value="ja">日本語</option>
+          <option value="ru">Русский</option>
+          <option value="ar">العربية</option>
+        </select>
+      </label>
+
+      {% if user.is_authenticated %}
+        <div class="flex min-w-0 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <span data-i18n="signedInAs">Signed in</span>
+          <span class="max-w-40 truncate font-semibold">{{ user.email|default:user.username }}</span>
+          <form method="post" action="{% url 'account_logout' %}">
+            {% csrf_token %}
+            <button class="font-semibold underline" type="submit" data-i18n="logout">Logout</button>
+          </form>
+        </div>
+      {% else %}
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-medium text-zinc-700" data-i18n="memberLogin">Member login</span>
+          <form method="post" action="/accounts/google/login/">
+            {% csrf_token %}
+            <button class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-i18n="googleLogin" {% if not google_oauth_ready %}disabled{% endif %}>Google</button>
+          </form>
+          <form method="post" action="/accounts/yahoo/login/">
+            {% csrf_token %}
+            <button class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-i18n="yahooLogin" {% if not yahoo_oauth_ready %}disabled{% endif %}>Yahoo</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+    <p class="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 sm:mb-4 sm:text-sm">Hacker Moose</p>
     <h1 class="max-w-xl text-4xl font-semibold tracking-normal text-zinc-950 sm:text-5xl" data-i18n="heroTitle">AI US Visa Photo Generator</h1>
-    <p class="mt-5 max-w-xl text-lg leading-8 text-zinc-700" data-i18n="heroBody">
+    <p class="mt-4 max-w-xl text-base leading-7 text-zinc-700 sm:mt-5 sm:text-lg sm:leading-8" data-i18n="heroBody">
       Upload one portrait and get a clean U.S. visa photo prepared with a white background, official-style square composition, and a print-ready sheet after checkout.
     </p>
-    <p class="mt-4 max-w-xl text-base leading-7 text-zinc-600" data-i18n="heroSubbody">
+    <p class="mt-3 max-w-xl text-sm leading-6 text-zinc-600 sm:mt-4 sm:text-base sm:leading-7" data-i18n="heroSubbody">
       The preview is watermarked so you can review the result first. Payment unlocks the high-resolution digital file and a convenient 4x6 inch print layout.
     </p>
-    <img class="mt-8 w-full max-w-md rounded-lg border border-zinc-200 bg-white shadow-sm" src="{% static 'img/Eagle_Logo_001.jpeg' %}" alt="Technology-styled American eagle emblem">
+    <div class="mt-6 aspect-square w-full max-w-sm overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm sm:mt-8 sm:max-w-md">
+      <img class="h-full w-full object-cover" src="{% static 'img/Eagle_Logo_001.jpeg' %}" alt="Technology-styled American eagle emblem">
+    </div>
   </div>
 
-  <div id="upload-panel" class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+  <div id="upload-panel" class="mx-auto w-full max-w-xl rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5 lg:mx-0">
     {% if messages %}
       <div class="mb-4 space-y-2">
         {% for message in messages %}
@@ -41,6 +68,11 @@
   const translations = {
     en: {
       languageLabel: "Language",
+      memberLogin: "Member login",
+      googleLogin: "Google",
+      yahooLogin: "Yahoo",
+      signedInAs: "Signed in",
+      logout: "Logout",
       heroTitle: "AI US Visa Photo Generator",
       heroBody: "Upload one portrait and get a clean U.S. visa photo prepared with a white background, official-style square composition, and a print-ready sheet after checkout.",
       heroSubbody: "The preview is watermarked so you can review the result first. Payment unlocks the high-resolution digital file and a convenient 4x6 inch print layout.",
@@ -48,12 +80,19 @@
       formBody: "Use a clear front-facing portrait. The app will crop, align, and prepare the download files.",
       emailLabel: "Delivery email",
       photoLabel: "Portrait photo",
+      chooseFile: "Choose file",
+      noFileChosen: "No file chosen",
       uploadButton: "Generate watermarked preview",
       processing: "Processing photo. This can take a few seconds when AI background removal is enabled.",
       emailPlaceholder: "email@example.com"
     },
     zh: {
       languageLabel: "語言",
+      memberLogin: "會員登入",
+      googleLogin: "Google 登入",
+      yahooLogin: "Yahoo 登入",
+      signedInAs: "已登入",
+      logout: "登出",
       heroTitle: "AI 美國簽證照片產生器",
       heroBody: "上傳一張人像照片，即可產生白色背景、方形構圖、適合美簽規格的照片，付款後可取得列印檔。",
       heroSubbody: "預覽圖會加上浮水印，讓你先確認結果。付款後即可下載高解析數位檔與 4x6 吋列印版型。",
@@ -61,12 +100,19 @@
       formBody: "請使用清楚的正面人像。系統會自動裁切、對齊，並準備下載檔案。",
       emailLabel: "收件 Email",
       photoLabel: "人像照片",
+      chooseFile: "選擇檔案",
+      noFileChosen: "尚未選取檔案",
       uploadButton: "產生浮水印預覽",
       processing: "照片處理中。啟用 AI 去背時可能需要幾秒鐘。",
       emailPlaceholder: "email@example.com"
     },
     fr: {
       languageLabel: "Langue",
+      memberLogin: "Connexion membre",
+      googleLogin: "Google",
+      yahooLogin: "Yahoo",
+      signedInAs: "Connecté",
+      logout: "Déconnexion",
       heroTitle: "Générateur IA de photo pour visa américain",
       heroBody: "Téléversez un portrait pour obtenir une photo de visa américaine propre, avec fond blanc, cadrage carré et feuille prête à imprimer après paiement.",
       heroSubbody: "L'aperçu contient un filigrane afin que vous puissiez vérifier le résultat. Le paiement débloque le fichier haute résolution et le modèle 4x6 pouces.",
@@ -74,12 +120,19 @@
       formBody: "Utilisez un portrait net de face. L'application recadrera, alignera et préparera les fichiers à télécharger.",
       emailLabel: "Email de livraison",
       photoLabel: "Photo portrait",
+      chooseFile: "Choisir un fichier",
+      noFileChosen: "Aucun fichier choisi",
       uploadButton: "Générer un aperçu filigrané",
       processing: "Traitement de la photo. Cela peut prendre quelques secondes avec la suppression IA du fond.",
       emailPlaceholder: "email@example.com"
     },
     ja: {
       languageLabel: "言語",
+      memberLogin: "会員ログイン",
+      googleLogin: "Google",
+      yahooLogin: "Yahoo",
+      signedInAs: "ログイン中",
+      logout: "ログアウト",
       heroTitle: "AI 米国ビザ写真ジェネレーター",
       heroBody: "人物写真を1枚アップロードすると、白背景、正方形構図、米国ビザ向けの写真と印刷用シートを決済後に取得できます。",
       heroSubbody: "プレビューには透かしが入るため、先に仕上がりを確認できます。決済後、高解像度ファイルと4x6インチ印刷テンプレートをダウンロードできます。",
@@ -87,12 +140,19 @@
       formBody: "正面を向いた鮮明な人物写真を使用してください。アプリが自動で切り抜き、位置合わせし、ダウンロードファイルを準備します。",
       emailLabel: "受信用メール",
       photoLabel: "人物写真",
+      chooseFile: "ファイルを選択",
+      noFileChosen: "ファイルが選択されていません",
       uploadButton: "透かし付きプレビューを生成",
       processing: "写真を処理しています。AI背景削除を使う場合、数秒かかることがあります。",
       emailPlaceholder: "email@example.com"
     },
     ru: {
       languageLabel: "Язык",
+      memberLogin: "Вход",
+      googleLogin: "Google",
+      yahooLogin: "Yahoo",
+      signedInAs: "Выполнен вход",
+      logout: "Выйти",
       heroTitle: "ИИ-генератор фото для визы США",
       heroBody: "Загрузите один портрет и получите аккуратное фото для визы США с белым фоном, квадратной композицией и печатным листом после оплаты.",
       heroSubbody: "На предварительном просмотре есть водяной знак, чтобы вы могли проверить результат. После оплаты доступны файл высокого разрешения и макет 4x6 дюймов.",
@@ -100,12 +160,19 @@
       formBody: "Используйте четкий портрет анфас. Приложение обрежет, выровняет и подготовит файлы для скачивания.",
       emailLabel: "Email для доставки",
       photoLabel: "Портретное фото",
+      chooseFile: "Выбрать файл",
+      noFileChosen: "Файл не выбран",
       uploadButton: "Создать предпросмотр с водяным знаком",
       processing: "Фото обрабатывается. Удаление фона с ИИ может занять несколько секунд.",
       emailPlaceholder: "email@example.com"
     },
     ar: {
       languageLabel: "اللغة",
+      memberLogin: "تسجيل دخول العضو",
+      googleLogin: "Google",
+      yahooLogin: "Yahoo",
+      signedInAs: "تم تسجيل الدخول",
+      logout: "تسجيل الخروج",
       heroTitle: "مولد صور تأشيرة الولايات المتحدة بالذكاء الاصطناعي",
       heroBody: "ارفع صورة شخصية واحدة للحصول على صورة مناسبة لتأشيرة الولايات المتحدة بخلفية بيضاء وتكوين مربع وملف جاهز للطباعة بعد الدفع.",
       heroSubbody: "تظهر المعاينة مع علامة مائية لتتمكن من مراجعة النتيجة أولا. بعد الدفع يمكنك تنزيل الملف عالي الدقة وقالب الطباعة 4x6 بوصة.",
@@ -113,6 +180,8 @@
       formBody: "استخدم صورة أمامية واضحة. سيقوم التطبيق بالقص والمحاذاة وتجهيز ملفات التنزيل.",
       emailLabel: "بريد التسليم",
       photoLabel: "الصورة الشخصية",
+      chooseFile: "اختر ملفا",
+      noFileChosen: "لم يتم اختيار ملف",
       uploadButton: "إنشاء معاينة بعلامة مائية",
       processing: "تتم معالجة الصورة. قد يستغرق حذف الخلفية بالذكاء الاصطناعي بضع ثوان.",
       emailPlaceholder: "email@example.com"
@@ -134,7 +203,23 @@
 
     const select = document.getElementById("language-select");
     if (select) select.value = language;
+    const fileInput = document.getElementById("id_original_image");
+    const fileName = document.getElementById("selected-file-name");
+    if (fileInput && fileName && !fileInput.files.length) fileName.textContent = copy.noFileChosen;
     localStorage.setItem("hackerMooseLanguage", language);
+  }
+
+  function bindFileInputText() {
+    const fileInput = document.getElementById("id_original_image");
+    const fileName = document.getElementById("selected-file-name");
+    if (!fileInput || !fileName || fileInput.dataset.bound === "true") return;
+
+    fileInput.addEventListener("change", () => {
+      const language = localStorage.getItem("hackerMooseLanguage") || "en";
+      const copy = translations[language] || translations.en;
+      fileName.textContent = fileInput.files.length ? fileInput.files[0].name : copy.noFileChosen;
+    });
+    fileInput.dataset.bound = "true";
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -144,10 +229,12 @@
       select.addEventListener("change", (event) => applyLanguage(event.target.value));
     }
     applyLanguage(savedLanguage);
+    bindFileInputText();
   });
 
   document.body.addEventListener("htmx:afterSwap", () => {
     applyLanguage(localStorage.getItem("hackerMooseLanguage") || "en");
+    bindFileInputText();
   });
 </script>
 {% endblock %}

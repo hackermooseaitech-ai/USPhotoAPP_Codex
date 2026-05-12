@@ -23,7 +23,11 @@
 
   <label class="block">
     <span class="mb-2 block text-sm font-medium" data-i18n="photoLabel">Portrait photo</span>
-    {{ form.original_image }}
+    <div class="custom-file-shell">
+      {{ form.original_image }}
+      <label class="custom-file-trigger" for="id_original_image" data-i18n="chooseFile">Choose file</label>
+      <span class="custom-file-name" id="selected-file-name" data-i18n="noFileChosen">No file chosen</span>
+    </div>
     {% for error in form.original_image.errors %}<span class="mt-1 block text-sm text-red-700">{{ error }}</span>{% endfor %}
   </label>
 

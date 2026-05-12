@@ -78,6 +78,35 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 
 Then restart Django. The app also verifies the returned Checkout Session on the success page, which helps local testing when the webhook listener is not running.
 
+## Member Login Setup
+
+This app uses `django-allauth` for Google and Yahoo OAuth login.
+
+Local callback URLs:
+
+```text
+http://127.0.0.1:8000/accounts/google/login/callback/
+http://127.0.0.1:8000/accounts/yahoo/login/callback/
+```
+
+Render callback URLs:
+
+```text
+https://usphotoapp-codex.onrender.com/accounts/google/login/callback/
+https://usphotoapp-codex.onrender.com/accounts/yahoo/login/callback/
+```
+
+Add these variables to `.env` locally or Render Environment Variables:
+
+```env
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+YAHOO_CLIENT_ID=
+YAHOO_CLIENT_SECRET=
+```
+
+The login buttons are disabled until the matching client ID and secret are configured.
+
 Local email defaults to Django's console backend, so messages print in the `runserver` terminal instead of sending to an inbox. To send real email, configure SMTP in `.env`, for example:
 
 ```env

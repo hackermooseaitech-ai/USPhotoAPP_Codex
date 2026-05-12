@@ -17,7 +17,16 @@ from .services.photo_processor import process_order_photo
 
 
 def index(request):
-    return render(request, "orders/index.html", {"form": PhotoUploadForm()})
+    providers = settings.SOCIALACCOUNT_PROVIDERS
+    return render(
+        request,
+        "orders/index.html",
+        {
+            "form": PhotoUploadForm(),
+            "google_oauth_ready": bool(providers.get("google", {}).get("APPS")),
+            "yahoo_oauth_ready": bool(providers.get("yahoo", {}).get("APPS")),
+        },
+    )
 
 
 @require_POST

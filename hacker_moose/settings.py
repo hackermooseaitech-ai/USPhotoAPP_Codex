@@ -21,7 +21,13 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "django.contrib.sites",
     "django.contrib.staticfiles",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.yahoo",
     "orders",
 ]
 
@@ -33,6 +39,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -99,6 +106,40 @@ if os.getenv("USE_S3", "False").lower() == "true":
     STORAGES["default"] = {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+SITE_ID = 1
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*"]
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_AUTO_SIGNUP = True
+
+
+def oauth_app(provider: str) -> list[dict[str, str]]:
+    client_id = os.getenv(f"{provider.upper()}_CLIENT_ID", "").strip()
+    secret = os.getenv(f"{provider.upper()}_CLIENT_SECRET", "").strip()
+    if not client_id or not secret:
+        return []
+    return [{"client_id": client_id, "secret": secret, "key": ""}]
+
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APPS": oauth_app("google"),
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+        "OAUTH_PKCE_ENABLED": True,
+    },
+    "yahoo": {
+        "APPS": oauth_app("yahoo"),
+        "SCOPE": ["openid", "email", "profile"],
+    },
+}
 
 SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:8000").rstrip("/")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
