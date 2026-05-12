@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-<section class="mx-auto grid min-h-screen max-w-6xl items-start gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-12 lg:px-8 lg:py-10">
-  <div class="mx-auto w-full max-w-xl lg:mx-0">
-    <div class="mb-5 flex flex-wrap items-center gap-3 sm:mb-6">
+<section class="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-5 py-10 lg:grid-cols-[0.92fr_1.08fr]">
+  <div>
+    <div class="mb-6 flex flex-wrap items-center gap-3">
       <label class="inline-flex items-center gap-3 text-sm font-medium text-zinc-700">
         <span data-i18n="languageLabel">Language</span>
         <select id="language-select" class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20">
@@ -39,20 +39,20 @@
         </div>
       {% endif %}
     </div>
-    <p class="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 sm:mb-4 sm:text-sm">Hacker Moose</p>
+    <p class="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Hacker Moose</p>
     <h1 class="max-w-xl text-4xl font-semibold tracking-normal text-zinc-950 sm:text-5xl" data-i18n="heroTitle">AI US Visa Photo Generator</h1>
-    <p class="mt-4 max-w-xl text-base leading-7 text-zinc-700 sm:mt-5 sm:text-lg sm:leading-8" data-i18n="heroBody">
+    <p class="mt-5 max-w-xl text-lg leading-8 text-zinc-700" data-i18n="heroBody">
       Upload one portrait and get a clean U.S. visa photo prepared with a white background, official-style square composition, and a print-ready sheet after checkout.
     </p>
-    <p class="mt-3 max-w-xl text-sm leading-6 text-zinc-600 sm:mt-4 sm:text-base sm:leading-7" data-i18n="heroSubbody">
+    <p class="mt-4 max-w-xl text-base leading-7 text-zinc-600" data-i18n="heroSubbody">
       The preview is watermarked so you can review the result first. Payment unlocks the high-resolution digital file and a convenient 4x6 inch print layout.
     </p>
-    <div class="mt-6 aspect-square w-full max-w-sm overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm sm:mt-8 sm:max-w-md">
+    <div class="mt-8 aspect-square w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
       <img class="h-full w-full object-cover" src="{% static 'img/Eagle_Logo_001.jpeg' %}" alt="Technology-styled American eagle emblem">
     </div>
   </div>
 
-  <div id="upload-panel" class="mx-auto w-full max-w-xl rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5 lg:mx-0">
+  <div id="upload-panel" class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
     {% if messages %}
       <div class="mb-4 space-y-2">
         {% for message in messages %}
