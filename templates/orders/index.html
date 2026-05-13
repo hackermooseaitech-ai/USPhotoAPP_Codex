@@ -19,7 +19,13 @@
       {% if user.is_authenticated %}
         <div class="flex min-w-0 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
           <span data-i18n="signedInAs">Signed in</span>
-          <span class="max-w-40 truncate font-semibold">{{ user.email|default:user.username }}</span>
+          <span class="max-w-64 truncate font-semibold">
+            {% if social_login %}
+              {{ social_login.provider }}: {{ social_login.email }}
+            {% else %}
+              {{ user.email|default:user.username }}
+            {% endif %}
+          </span>
           <form method="post" action="{% url 'account_logout' %}">
             {% csrf_token %}
             <button class="font-semibold underline" type="submit" data-i18n="logout">Logout</button>

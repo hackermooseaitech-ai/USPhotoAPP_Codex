@@ -6,3 +6,6 @@ db.sqlite3
 media/
 staticfiles/
 .pytest_cache/
+*.log
+err.txt
+yahoo-error.log
