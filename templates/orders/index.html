@@ -38,10 +38,6 @@
             {% csrf_token %}
             <button class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-i18n="googleLogin" {% if not google_oauth_ready %}disabled{% endif %}>Google</button>
           </form>
-          <form method="post" action="/accounts/yahoo/login/">
-            {% csrf_token %}
-            <button class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-i18n="yahooLogin" {% if not yahoo_oauth_ready %}disabled{% endif %}>Yahoo</button>
-          </form>
         </div>
       {% endif %}
     </div>
@@ -76,7 +72,6 @@
       languageLabel: "Language",
       memberLogin: "Member login",
       googleLogin: "Google",
-      yahooLogin: "Yahoo",
       signedInAs: "Signed in",
       logout: "Logout",
       heroTitle: "AI US Visa Photo Generator",
@@ -96,7 +91,6 @@
       languageLabel: "語言",
       memberLogin: "會員登入",
       googleLogin: "Google 登入",
-      yahooLogin: "Yahoo 登入",
       signedInAs: "已登入",
       logout: "登出",
       heroTitle: "AI 美國簽證照片產生器",
@@ -116,7 +110,6 @@
       languageLabel: "Langue",
       memberLogin: "Connexion membre",
       googleLogin: "Google",
-      yahooLogin: "Yahoo",
       signedInAs: "Connecté",
       logout: "Déconnexion",
       heroTitle: "Générateur IA de photo pour visa américain",
@@ -136,7 +129,6 @@
       languageLabel: "言語",
       memberLogin: "会員ログイン",
       googleLogin: "Google",
-      yahooLogin: "Yahoo",
       signedInAs: "ログイン中",
       logout: "ログアウト",
       heroTitle: "AI 米国ビザ写真ジェネレーター",
@@ -156,7 +148,6 @@
       languageLabel: "Язык",
       memberLogin: "Вход",
       googleLogin: "Google",
-      yahooLogin: "Yahoo",
       signedInAs: "Выполнен вход",
       logout: "Выйти",
       heroTitle: "ИИ-генератор фото для визы США",
@@ -176,7 +167,6 @@
       languageLabel: "اللغة",
       memberLogin: "تسجيل دخول العضو",
       googleLogin: "Google",
-      yahooLogin: "Yahoo",
       signedInAs: "تم تسجيل الدخول",
       logout: "تسجيل الخروج",
       heroTitle: "مولد صور تأشيرة الولايات المتحدة بالذكاء الاصطناعي",

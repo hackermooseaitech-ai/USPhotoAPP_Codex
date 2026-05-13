@@ -32,7 +32,6 @@ def index(request):
         {
             "form": PhotoUploadForm(),
             "google_oauth_ready": bool(providers.get("google", {}).get("APPS")),
-            "yahoo_oauth_ready": bool(providers.get("yahoo", {}).get("APPS")),
             "social_login": social_login,
         },
     )
