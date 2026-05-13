@@ -138,6 +138,7 @@ SOCIALACCOUNT_PROVIDERS = {
     "yahoo": {
         "APPS": oauth_app("yahoo"),
         "SCOPE": ["openid", "email", "profile"],
+        "PROVIDER_CLASS": "orders.providers.SafeYahooProvider",
     },
 }
 
