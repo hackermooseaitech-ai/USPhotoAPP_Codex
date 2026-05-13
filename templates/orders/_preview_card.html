@@ -1,4 +1,18 @@
-<div class="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]">
+<div class="grid gap-5 md:grid-cols-[260px_minmax(0,1fr)]">
+  <div>
+    <a href="{{ order.preview_image.url }}?v={{ order.id }}" target="_blank" rel="noopener">
+      <img
+        class="aspect-square w-full rounded-md border border-zinc-200 bg-zinc-100 object-cover shadow-sm"
+        src="{{ order.preview_image.url }}?v={{ order.id }}"
+        alt="Watermarked visa photo preview"
+        loading="eager"
+      >
+    </a>
+    <a class="mt-2 block text-center text-xs font-medium text-zinc-600 underline" href="{{ order.preview_image.url }}?v={{ order.id }}" target="_blank" rel="noopener">
+      Open preview image
+    </a>
+  </div>
+
   <div>
     <h2 class="text-xl font-semibold">Preview ready</h2>
     <p class="mt-2 text-sm leading-6 text-zinc-600">This preview is watermarked. Checkout unlocks the clean 600x600 JPEG and 4x6 print template.</p>
@@ -17,8 +31,6 @@
       </button>
     </form>
   </div>
-
-  <img class="aspect-square w-full rounded-md border border-zinc-200 object-cover" src="{{ order.preview_image.url }}" alt="Watermarked visa photo preview">
 </div>
 
 <div class="mt-5">
