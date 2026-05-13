@@ -1,14 +1,14 @@
 <div class="grid gap-5 md:grid-cols-[260px_minmax(0,1fr)]">
   <div>
-    <a href="{{ order.preview_image.url }}?v={{ order.id }}" target="_blank" rel="noopener">
+    <a href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'U' }}" target="_blank" rel="noopener">
       <img
         class="aspect-square w-full rounded-md border border-zinc-200 bg-zinc-100 object-cover shadow-sm"
-        src="{{ order.preview_image.url }}?v={{ order.id }}"
+        src="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'U' }}"
         alt="Watermarked visa photo preview"
         loading="eager"
       >
     </a>
-    <a class="mt-2 block text-center text-xs font-medium text-zinc-600 underline" href="{{ order.preview_image.url }}?v={{ order.id }}" target="_blank" rel="noopener">
+    <a class="mt-2 block text-center text-xs font-medium text-zinc-600 underline" href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'U' }}" target="_blank" rel="noopener">
       Open preview image
     </a>
   </div>

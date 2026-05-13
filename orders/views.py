@@ -115,6 +115,17 @@ def success(request, order_id):
     return render(request, "orders/success.html", {"order": order})
 
 
+def preview_file(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if not order.preview_image:
+        raise Http404("Preview is not available.")
+
+    filename = Path(order.preview_image.name).name
+    response = FileResponse(order.preview_image.open("rb"), filename=filename)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 def download_file(request, order_id, kind):
     order = get_object_or_404(Order, id=order_id)
     if order.status != Order.Status.PAID:
