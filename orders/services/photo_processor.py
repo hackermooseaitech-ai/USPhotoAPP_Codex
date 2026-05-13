@@ -167,19 +167,16 @@ def _crop_to_visa_spec(image: Image.Image, face: FaceGeometry | None, notes: lis
         notes.append("Output resized to 600x600 JPEG at 300 DPI.")
         return crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
 
-    crop_side = face.head_height / TARGET_HEAD_RATIO
-    eye_top = face.eye_y - (1 - TARGET_EYE_HEIGHT_FROM_BOTTOM) * crop_side
-    head_top = face.head_top_y - (1 - TARGET_HEAD_RATIO) * crop_side * 0.5
-    top = (eye_top * 0.72) + (head_top * 0.28)
-    left = face.center_x - crop_side / 2
-
     min_side_for_face = face.head_height / 0.69
     max_side_for_face = face.head_height / 0.50
-    crop_side = min(max(crop_side, min_side_for_face), max_side_for_face)
+    crop_side = min(max(face.head_height / TARGET_HEAD_RATIO, min_side_for_face), max_side_for_face)
+
+    left = face.center_x - crop_side / 2
+    top = face.eye_y - (1 - TARGET_EYE_HEIGHT_FROM_BOTTOM) * crop_side
 
     crop = _safe_square_crop(image, left, top, crop_side)
     final = crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
-    notes.append("Cropped to 600x600 with target head ratio 60% and eye-line height 62%.")
+    notes.append("Cropped to 600x600 with head height targeted at 60% and eye-line centered horizontally at 62% from the bottom.")
     return final
 
 
