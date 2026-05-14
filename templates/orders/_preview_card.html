@@ -78,10 +78,39 @@
         Pay and download
       </button>
     </form>
+
+    <section class="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700">
+      <h3 class="text-base font-semibold text-zinc-950">US photo requirements</h3>
+
+      <div class="mt-3">
+        <h4 class="font-semibold text-zinc-950">General Specifications</h4>
+        <p><span class="font-medium">Recency:</span> Taken within the last 6 months.</p>
+        <p><span class="font-medium">Background:</span> Plain white or off-white.</p>
+        <p><span class="font-medium">Color:</span> High-resolution color photo only.</p>
+        <p><span class="font-medium">Dimensions:</span> Head must be 1-1.375 inches (22-35 mm), or 50%-69% of the total height.</p>
+      </div>
+
+      <div class="mt-3">
+        <h4 class="font-semibold text-zinc-950">Pose and Expression</h4>
+        <p><span class="font-medium">View:</span> Full-face, directly facing the camera.</p>
+        <p><span class="font-medium">Expression:</span> Neutral facial expression with both eyes open.</p>
+      </div>
+
+      <div class="mt-3">
+        <h4 class="font-semibold text-zinc-950">Attire and Accessories</h4>
+        <p><span class="font-medium">Clothing:</span> Normal daily attire. No uniforms, except daily religious garments.</p>
+        <p><span class="font-medium">Headwear:</span> No hats or head coverings that obscure the hairline, unless for religious reasons. Face must remain fully visible.</p>
+        <p><span class="font-medium">Electronics:</span> No headphones or wireless hands-free devices.</p>
+        <p><span class="font-medium">Eyeglasses:</span> Strictly prohibited, except for rare medical necessity with a signed medical statement.</p>
+        <p><span class="font-medium">Hearing Aids:</span> Permissible if worn daily.</p>
+      </div>
+
+      <p class="mt-3 text-xs leading-5 text-zinc-600"><span class="font-semibold text-zinc-800">Pro-Tip:</span> Using a professional photo service is highly recommended, as final acceptance is at the sole discretion of the embassy or consulate.</p>
+    </section>
   </div>
 </div>
 
-<div class="mt-5 flex items-center justify-between gap-4">
-  <a class="text-sm font-medium text-zinc-700 underline" href="{% url 'orders:edit' order.id %}">Reload</a>
-  <button class="text-sm font-medium text-zinc-700 underline" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '{% url 'orders:index' %}'; }">Return</button>
+<div class="mt-5 flex flex-wrap items-center gap-3">
+  <a class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" href="{% url 'orders:index' %}">Reload</a>
+  <button class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '{% url 'orders:index' %}'; }">Return</button>
 </div>
