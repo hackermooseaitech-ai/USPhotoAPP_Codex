@@ -40,7 +40,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="set_ratio">
       <div class="mb-2 flex items-center justify-between gap-3">
-        <span class="text-sm font-semibold text-zinc-950">Head size</span>
+        <span class="text-sm font-semibold text-zinc-950" data-page-i18n="headSize">Head size</span>
         <output id="head-percent-output" class="rounded-md bg-zinc-100 px-2 py-1 text-sm font-semibold text-zinc-950">{{ order.crop_head_percent }}%</output>
       </div>
       <div class="grid grid-cols-[42px_minmax(0,1fr)_42px] items-center gap-2">
@@ -59,58 +59,58 @@
         <span class="text-center text-xs font-semibold text-zinc-500">62%</span>
       </div>
       <div class="htmx-indicator mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-        Updating preview...
+        <span data-page-i18n="updatingPreview">Updating preview...</span>
       </div>
     </form>
 
     <a class="mt-2 block text-center text-xs font-medium text-zinc-600 underline" href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}" target="_blank" rel="noopener">
-      Open preview image
+      <span data-page-i18n="openPreview">Open preview image</span>
     </a>
   </div>
 
   <div>
-    <h2 class="text-xl font-semibold">Preview ready</h2>
-    <p class="mt-2 text-sm leading-6 text-zinc-600">This preview is watermarked. Checkout unlocks the clean 600x600 JPEG and 4x6 print template.</p>
+    <h2 class="text-xl font-semibold" data-page-i18n="previewReady">Preview ready</h2>
+    <p class="mt-2 text-sm leading-6 text-zinc-600" data-page-i18n="previewBody">This preview is watermarked. Checkout unlocks the clean 600x600 JPEG and 4x6 print template.</p>
 
     <form class="mt-5" method="post" action="{% url 'orders:checkout' order.id %}">
       {% csrf_token %}
       <button class="inline-flex w-full items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" type="submit">
-        Pay and download
+        <span data-page-i18n="payDownload">Pay and download</span>
       </button>
     </form>
 
     <section class="mt-5 rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700">
-      <h3 class="text-base font-semibold text-zinc-950">US photo requirements</h3>
+      <h3 class="text-base font-semibold text-zinc-950" data-page-i18n="usRequirements">US photo requirements</h3>
 
       <div class="mt-3">
-        <h4 class="font-semibold text-zinc-950">General Specifications</h4>
-        <p><span class="font-medium">Recency:</span> Taken within the last 6 months.</p>
-        <p><span class="font-medium">Background:</span> Plain white or off-white.</p>
-        <p><span class="font-medium">Color:</span> High-resolution color photo only.</p>
-        <p><span class="font-medium">Dimensions:</span> Head must be 1-1.375 inches (22-35 mm), or 50%-69% of the total height.</p>
+        <h4 class="font-semibold text-zinc-950" data-page-i18n="generalSpecs">General Specifications</h4>
+        <p data-page-i18n="recency">Recency: Taken within the last 6 months.</p>
+        <p data-page-i18n="background">Background: Plain white or off-white.</p>
+        <p data-page-i18n="color">Color: High-resolution color photo only.</p>
+        <p data-page-i18n="dimensions">Dimensions: Head must be 1-1.375 inches (22-35 mm), or 50%-69% of the total height.</p>
       </div>
 
       <div class="mt-3">
-        <h4 class="font-semibold text-zinc-950">Pose and Expression</h4>
-        <p><span class="font-medium">View:</span> Full-face, directly facing the camera.</p>
-        <p><span class="font-medium">Expression:</span> Neutral facial expression with both eyes open.</p>
+        <h4 class="font-semibold text-zinc-950" data-page-i18n="poseExpression">Pose and Expression</h4>
+        <p data-page-i18n="view">View: Full-face, directly facing the camera.</p>
+        <p data-page-i18n="expression">Expression: Neutral facial expression with both eyes open.</p>
       </div>
 
       <div class="mt-3">
-        <h4 class="font-semibold text-zinc-950">Attire and Accessories</h4>
-        <p><span class="font-medium">Clothing:</span> Normal daily attire. No uniforms, except daily religious garments.</p>
-        <p><span class="font-medium">Headwear:</span> No hats or head coverings that obscure the hairline, unless for religious reasons. Face must remain fully visible.</p>
-        <p><span class="font-medium">Electronics:</span> No headphones or wireless hands-free devices.</p>
-        <p><span class="font-medium">Eyeglasses:</span> Strictly prohibited, except for rare medical necessity with a signed medical statement.</p>
-        <p><span class="font-medium">Hearing Aids:</span> Permissible if worn daily.</p>
+        <h4 class="font-semibold text-zinc-950" data-page-i18n="attireAccessories">Attire and Accessories</h4>
+        <p data-page-i18n="clothing">Clothing: Normal daily attire. No uniforms, except daily religious garments.</p>
+        <p data-page-i18n="headwear">Headwear: No hats or head coverings that obscure the hairline, unless for religious reasons. Face must remain fully visible.</p>
+        <p data-page-i18n="electronics">Electronics: No headphones or wireless hands-free devices.</p>
+        <p data-page-i18n="eyeglasses">Eyeglasses: Strictly prohibited, except for rare medical necessity with a signed medical statement.</p>
+        <p data-page-i18n="hearingAids">Hearing Aids: Permissible if worn daily.</p>
       </div>
 
-      <p class="mt-3 text-xs leading-5 text-zinc-600"><span class="font-semibold text-zinc-800">Pro-Tip:</span> Using a professional photo service is highly recommended, as final acceptance is at the sole discretion of the embassy or consulate.</p>
+      <p class="mt-3 text-xs leading-5 text-zinc-600" data-page-i18n="proTip">Pro-Tip: Using a professional photo service is highly recommended, as final acceptance is at the sole discretion of the embassy or consulate.</p>
     </section>
   </div>
 </div>
 
 <div class="mt-5 flex flex-wrap items-center gap-3">
-  <a class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" href="{% url 'orders:index' %}">Reload</a>
-  <button class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '{% url 'orders:index' %}'; }">Return</button>
+  <a class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" href="{% url 'orders:index' %}" data-page-i18n="reloadButton">Reload</a>
+  <button class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '{% url 'orders:index' %}'; }" data-page-i18n="returnButton">Return</button>
 </div>
