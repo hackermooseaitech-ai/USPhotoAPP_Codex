@@ -3,44 +3,6 @@
 {% block content %}
 <section class="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-5 py-10 lg:grid-cols-[0.92fr_1.08fr]">
   <div>
-    <div class="mb-6 flex flex-wrap items-center gap-3">
-      <label class="inline-flex items-center gap-3 text-sm font-medium text-zinc-700">
-        <span data-i18n="languageLabel">Language</span>
-        <select id="language-select" class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20">
-          <option value="en">English</option>
-          <option value="zh">中文</option>
-          <option value="fr">Français</option>
-          <option value="ja">日本語</option>
-          <option value="ru">Русский</option>
-          <option value="ar">العربية</option>
-        </select>
-      </label>
-
-      {% if user.is_authenticated %}
-        <div class="flex min-w-0 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          <span data-i18n="signedInAs">Signed in</span>
-          <span class="max-w-64 truncate font-semibold">
-            {% if social_login %}
-              {{ social_login.provider }}: {{ social_login.email }}
-            {% else %}
-              {{ user.email|default:user.username }}
-            {% endif %}
-          </span>
-          <form method="post" action="{% url 'account_logout' %}">
-            {% csrf_token %}
-            <button class="font-semibold underline" type="submit" data-i18n="logout">Logout</button>
-          </form>
-        </div>
-      {% else %}
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-medium text-zinc-700" data-i18n="memberLogin">Member login</span>
-          <form method="post" action="/accounts/google/login/">
-            {% csrf_token %}
-            <button class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-i18n="googleLogin" {% if not google_oauth_ready %}disabled{% endif %}>Google</button>
-          </form>
-        </div>
-      {% endif %}
-    </div>
     <p class="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Hacker Moose</p>
     <h1 class="max-w-xl text-4xl font-semibold tracking-normal text-zinc-950 sm:text-5xl" data-i18n="heroTitle">AI US Visa Photo Generator</h1>
     <p class="mt-5 max-w-xl text-lg leading-8 text-zinc-700" data-i18n="heroBody">

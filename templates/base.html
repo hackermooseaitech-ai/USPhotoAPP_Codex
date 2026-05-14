@@ -11,8 +11,90 @@
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body class="bg-zinc-50 text-zinc-950">
+  <header class="border-b border-zinc-200 bg-white/90 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3">
+      <a class="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700" href="{% url 'orders:index' %}">Hacker Moose</a>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="inline-flex items-center gap-2 text-sm font-medium text-zinc-700">
+          <span data-site-i18n="languageLabel">Language</span>
+          <select id="language-select" class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+            <option value="fr">Français</option>
+            <option value="ja">日本語</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+          </select>
+        </label>
+
+        {% if user.is_authenticated %}
+          <div class="flex min-w-0 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+            <span data-site-i18n="signedInAs">Signed in</span>
+            <span class="max-w-48 truncate font-semibold">
+              {% if social_login %}
+                {{ social_login.provider }}: {{ social_login.email }}
+              {% else %}
+                {{ user.email|default:user.username }}
+              {% endif %}
+            </span>
+            <form method="post" action="{% url 'account_logout' %}">
+              {% csrf_token %}
+              <button class="font-semibold underline" type="submit" data-site-i18n="logout">Logout</button>
+            </form>
+          </div>
+        {% else %}
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm font-medium text-zinc-700" data-site-i18n="memberLogin">Log In</span>
+            <form method="post" action="/accounts/google/login/">
+              {% csrf_token %}
+              <button class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-site-i18n="googleLogin" {% if not google_oauth_ready %}disabled{% endif %}>Google</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
   <main class="min-h-screen">
     {% block content %}{% endblock %}
   </main>
+
+  <script>
+    const siteChromeTranslations = {
+      en: { languageLabel: "Language", memberLogin: "Log In", googleLogin: "Google", signedInAs: "Signed in", logout: "Logout" },
+      zh: { languageLabel: "語言", memberLogin: "登入", googleLogin: "Google 登入", signedInAs: "已登入", logout: "登出" },
+      fr: { languageLabel: "Langue", memberLogin: "Connexion", googleLogin: "Google", signedInAs: "Connecté", logout: "Déconnexion" },
+      ja: { languageLabel: "言語", memberLogin: "ログイン", googleLogin: "Google", signedInAs: "ログイン中", logout: "ログアウト" },
+      ru: { languageLabel: "Язык", memberLogin: "Вход", googleLogin: "Google", signedInAs: "Выполнен вход", logout: "Выйти" },
+      ar: { languageLabel: "اللغة", memberLogin: "تسجيل الدخول", googleLogin: "Google", signedInAs: "تم تسجيل الدخول", logout: "تسجيل الخروج" }
+    };
+
+    function applySiteChromeLanguage(language) {
+      const copy = siteChromeTranslations[language] || siteChromeTranslations.en;
+      document.documentElement.lang = language;
+      document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+      document.querySelectorAll("[data-site-i18n]").forEach((node) => {
+        const key = node.getAttribute("data-site-i18n");
+        if (copy[key]) node.textContent = copy[key];
+      });
+      const select = document.getElementById("language-select");
+      if (select) select.value = language;
+      localStorage.setItem("hackerMooseLanguage", language);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedLanguage = localStorage.getItem("hackerMooseLanguage") || "en";
+      const select = document.getElementById("language-select");
+      if (select && select.dataset.siteBound !== "true") {
+        select.addEventListener("change", (event) => {
+          applySiteChromeLanguage(event.target.value);
+          if (typeof applyLanguage === "function") applyLanguage(event.target.value);
+        });
+        select.dataset.siteBound = "true";
+      }
+      applySiteChromeLanguage(savedLanguage);
+    });
+  </script>
 </body>
 </html>
