@@ -226,7 +226,8 @@ def _crop_to_visa_spec(
 
     crop = _safe_square_crop(image, left, top, crop_side)
     final = crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
-    notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line at 62% from the bottom, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
+    effective_eye_from_bottom = TARGET_EYE_HEIGHT_FROM_BOTTOM - (offset_y / OUTPUT_SIZE)
+    notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line near {effective_eye_from_bottom:.0%} from the bottom, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
     return final
 
 

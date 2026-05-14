@@ -20,6 +20,7 @@ MAX_HEAD_RATIO = 0.62
 RATIO_STEP = 0.01
 OFFSET_STEP = 18
 MAX_OFFSET = 96
+DEFAULT_OFFSET_Y = 24
 
 
 def index(request):
@@ -95,7 +96,7 @@ def adjust_photo(request, order_id):
     elif action == "reset":
         order.crop_head_ratio = 0.60
         order.crop_offset_x = 0
-        order.crop_offset_y = 0
+        order.crop_offset_y = DEFAULT_OFFSET_Y
     else:
         return HttpResponseBadRequest("Unknown adjustment.")
 
