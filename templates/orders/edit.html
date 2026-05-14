@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="mx-auto max-w-5xl px-5 py-8">
+  <div class="mb-6 flex items-center justify-between gap-4">
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Hacker Moose</p>
+      <h1 class="mt-2 text-3xl font-semibold text-zinc-950">Adjust your visa photo</h1>
+    </div>
+    <a class="text-sm font-semibold text-zinc-700 underline" href="{% url 'orders:index' %}">Start over</a>
+  </div>
+
+  <div id="preview-panel" class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+    {% include "orders/_preview_card.html" %}
+  </div>
+</section>
+{% endblock %}

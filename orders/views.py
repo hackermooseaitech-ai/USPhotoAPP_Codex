@@ -56,7 +56,17 @@ def upload_photo(request):
     _set_order_face(order, prepared.face)
     _regenerate_order_images(order, base_notes=prepared.notes)
 
-    return render(request, "orders/_preview_card.html", {"order": order})
+    edit_url = reverse("orders:edit", args=[order.id])
+    if request.headers.get("HX-Request"):
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = edit_url
+        return response
+    return redirect(edit_url)
+
+
+def edit_photo(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    return render(request, "orders/edit.html", {"order": order})
 
 
 @require_POST
