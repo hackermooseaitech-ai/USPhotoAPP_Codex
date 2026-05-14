@@ -81,6 +81,7 @@
   </div>
 </div>
 
-<div class="mt-5">
-  <a class="text-sm font-medium text-zinc-700 underline" href="{% url 'orders:index' %}">Start over</a>
+<div class="mt-5 flex items-center justify-between gap-4">
+  <a class="text-sm font-medium text-zinc-700 underline" href="{% url 'orders:edit' order.id %}">Reload</a>
+  <button class="text-sm font-medium text-zinc-700 underline" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '{% url 'orders:index' %}'; }">Return</button>
 </div>
