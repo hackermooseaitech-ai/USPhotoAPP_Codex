@@ -19,6 +19,9 @@ class Order(models.Model):
     print_template = models.ImageField(upload_to="orders/print_templates/", blank=True)
     s3_key = models.CharField(max_length=512, blank=True)
     processing_notes = models.TextField(blank=True)
+    crop_head_ratio = models.FloatField(default=0.60)
+    crop_offset_x = models.FloatField(default=0)
+    crop_offset_y = models.FloatField(default=0)
     delivery_email_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -28,3 +31,11 @@ class Order(models.Model):
 
     def __str__(self):
         return f"{self.id} ({self.status})"
+
+    @property
+    def crop_head_percent(self):
+        return round(self.crop_head_ratio * 100)
+
+    @property
+    def crop_head_progress_percent(self):
+        return round(((self.crop_head_ratio - 0.53) / 0.09) * 100)

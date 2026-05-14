@@ -9,6 +9,8 @@ OUTPUT_SIZE = 600
 PRINT_TEMPLATE_SIZE = (1800, 1200)  # 6x4 inches at 300 DPI, landscape.
 TARGET_HEAD_RATIO = 0.60
 TARGET_EYE_HEIGHT_FROM_BOTTOM = 0.62
+MIN_HEAD_RATIO = 0.53
+MAX_HEAD_RATIO = 0.62
 
 
 @dataclass(frozen=True)
@@ -31,14 +33,15 @@ class ProcessedPhoto:
     notes: list[str]
 
 
-def process_order_photo(uploaded_file) -> ProcessedPhoto:
+def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, offset_x: float = 0, offset_y: float = 0) -> ProcessedPhoto:
     image = Image.open(uploaded_file)
     image = ImageOps.exif_transpose(image).convert("RGB")
 
     notes: list[str] = []
+    head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     white_background = _remove_background_to_white(image, notes)
     face = _detect_face_geometry(white_background, notes)
-    final = _crop_to_visa_spec(white_background, face, notes)
+    final = _crop_to_visa_spec(white_background, face, notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final)
 
@@ -156,7 +159,14 @@ def _detect_face_geometry_with_opencv(image: Image.Image, notes: list[str]) -> F
     return FaceGeometry(center_x=center_x, eye_y=eye_y, head_top_y=head_top_y, chin_y=chin_y)
 
 
-def _crop_to_visa_spec(image: Image.Image, face: FaceGeometry | None, notes: list[str]) -> Image.Image:
+def _crop_to_visa_spec(
+    image: Image.Image,
+    face: FaceGeometry | None,
+    notes: list[str],
+    head_ratio: float,
+    offset_x: float,
+    offset_y: float,
+) -> Image.Image:
     width, height = image.size
 
     if face is None:
@@ -169,14 +179,14 @@ def _crop_to_visa_spec(image: Image.Image, face: FaceGeometry | None, notes: lis
 
     min_side_for_face = face.head_height / 0.69
     max_side_for_face = face.head_height / 0.50
-    crop_side = min(max(face.head_height / TARGET_HEAD_RATIO, min_side_for_face), max_side_for_face)
+    crop_side = min(max(face.head_height / head_ratio, min_side_for_face), max_side_for_face)
 
-    left = face.center_x - crop_side / 2
-    top = face.eye_y - (1 - TARGET_EYE_HEIGHT_FROM_BOTTOM) * crop_side
+    left = face.center_x - crop_side / 2 - (offset_x / OUTPUT_SIZE) * crop_side
+    top = face.eye_y - (1 - TARGET_EYE_HEIGHT_FROM_BOTTOM) * crop_side - (offset_y / OUTPUT_SIZE) * crop_side
 
     crop = _safe_square_crop(image, left, top, crop_side)
     final = crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
-    notes.append("Cropped to 600x600 with head height targeted at 60% and eye-line centered horizontally at 62% from the bottom.")
+    notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line at 62% from the bottom, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
     return final
 
 

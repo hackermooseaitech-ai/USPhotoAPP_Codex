@@ -1,14 +1,14 @@
 <div class="grid gap-5 md:grid-cols-[260px_minmax(0,1fr)]">
   <div>
-    <a href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'U' }}" target="_blank" rel="noopener">
+    <a href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}" target="_blank" rel="noopener">
       <img
         class="aspect-square w-full rounded-md border border-zinc-200 bg-zinc-100 object-cover shadow-sm"
-        src="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'U' }}"
+        src="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}"
         alt="Watermarked visa photo preview"
         loading="eager"
       >
     </a>
-    <a class="mt-2 block text-center text-xs font-medium text-zinc-600 underline" href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'U' }}" target="_blank" rel="noopener">
+    <a class="mt-2 block text-center text-xs font-medium text-zinc-600 underline" href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}" target="_blank" rel="noopener">
       Open preview image
     </a>
   </div>
@@ -16,6 +16,65 @@
   <div>
     <h2 class="text-xl font-semibold">Preview ready</h2>
     <p class="mt-2 text-sm leading-6 text-zinc-600">This preview is watermarked. Checkout unlocks the clean 600x600 JPEG and 4x6 print template.</p>
+
+    <form
+      class="mt-4 space-y-4 rounded-md border border-zinc-200 bg-white p-3"
+      hx-post="{% url 'orders:adjust' order.id %}"
+      hx-target="#upload-panel"
+      hx-swap="innerHTML"
+    >
+      {% csrf_token %}
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="text-sm font-semibold text-zinc-950">Adjust head size</div>
+          <div class="text-xs text-zinc-500">Allowed range 53%-62%</div>
+        </div>
+        <div class="min-w-16 rounded-md bg-zinc-100 px-2 py-1 text-center text-sm font-semibold text-zinc-950">
+          {{ order.crop_head_percent }}%
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+        <button class="h-10 rounded-md border border-zinc-300 bg-white text-lg font-semibold transition hover:border-zinc-500" type="submit" name="action" value="ratio_down" aria-label="Make head smaller">
+          &larr;
+        </button>
+        <div class="h-2 overflow-hidden rounded-full bg-zinc-100">
+          <div class="h-full rounded-full bg-emerald-700" style="width: {{ order.crop_head_progress_percent }}%;"></div>
+        </div>
+        <button class="h-10 rounded-md border border-zinc-300 bg-white text-lg font-semibold transition hover:border-zinc-500" type="submit" name="action" value="ratio_up" aria-label="Make head larger">
+          &rarr;
+        </button>
+      </div>
+
+      <div>
+        <div class="mb-2 text-sm font-semibold text-zinc-950">Move head position</div>
+        <div class="mx-auto grid w-36 grid-cols-3 gap-2">
+          <span></span>
+          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_up" aria-label="Move head up">
+            ↑
+          </button>
+          <span></span>
+          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_left" aria-label="Move head left">
+            ←
+          </button>
+          <button class="h-10 rounded-md border border-zinc-300 bg-white text-xs font-semibold transition hover:border-zinc-500" type="submit" name="action" value="reset">
+            Reset
+          </button>
+          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_right" aria-label="Move head right">
+            →
+          </button>
+          <span></span>
+          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_down" aria-label="Move head down">
+            ↓
+          </button>
+          <span></span>
+        </div>
+      </div>
+
+      <div class="htmx-indicator rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        Updating preview...
+      </div>
+    </form>
 
     {% if order.processing_notes %}
       <div class="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs leading-5 text-zinc-600">

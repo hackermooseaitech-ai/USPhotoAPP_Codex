@@ -15,6 +15,12 @@ from .models import Order
 from .services.delivery import send_delivery_email
 from .services.photo_processor import process_order_photo
 
+MIN_HEAD_RATIO = 0.53
+MAX_HEAD_RATIO = 0.62
+RATIO_STEP = 0.01
+OFFSET_STEP = 18
+MAX_OFFSET = 96
+
 
 def index(request):
     providers = settings.SOCIALACCOUNT_PROVIDERS
@@ -44,16 +50,65 @@ def upload_photo(request):
         return render(request, "orders/_upload_form.html", {"form": form}, status=422)
 
     order = form.save()
-    processed = process_order_photo(order.original_image)
+    _regenerate_order_images(order)
+
+    return render(request, "orders/_preview_card.html", {"order": order})
+
+
+@require_POST
+def adjust_photo(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    action = request.POST.get("action")
+
+    if action == "ratio_down":
+        order.crop_head_ratio = max(MIN_HEAD_RATIO, order.crop_head_ratio - RATIO_STEP)
+    elif action == "ratio_up":
+        order.crop_head_ratio = min(MAX_HEAD_RATIO, order.crop_head_ratio + RATIO_STEP)
+    elif action == "move_left":
+        order.crop_offset_x = max(-MAX_OFFSET, order.crop_offset_x - OFFSET_STEP)
+    elif action == "move_right":
+        order.crop_offset_x = min(MAX_OFFSET, order.crop_offset_x + OFFSET_STEP)
+    elif action == "move_up":
+        order.crop_offset_y = max(-MAX_OFFSET, order.crop_offset_y - OFFSET_STEP)
+    elif action == "move_down":
+        order.crop_offset_y = min(MAX_OFFSET, order.crop_offset_y + OFFSET_STEP)
+    elif action == "reset":
+        order.crop_head_ratio = 0.60
+        order.crop_offset_x = 0
+        order.crop_offset_y = 0
+    else:
+        return HttpResponseBadRequest("Unknown adjustment.")
+
+    _regenerate_order_images(order)
+    return render(request, "orders/_preview_card.html", {"order": order})
+
+
+def _regenerate_order_images(order):
+    processed = process_order_photo(
+        order.original_image,
+        head_ratio=order.crop_head_ratio,
+        offset_x=order.crop_offset_x,
+        offset_y=order.crop_offset_y,
+    )
     version = order.updated_at.strftime("%Y%m%d%H%M%S")
     order.processed_image.save(f"{order.id}-{version}-visa-photo-600.jpg", processed.final_jpeg, save=False)
     order.preview_image.save(f"{order.id}-{version}-preview.jpg", processed.preview_jpeg, save=False)
     order.print_template.save(f"{order.id}-{version}-4x6.jpg", processed.print_template_jpeg, save=False)
     order.s3_key = order.processed_image.name
     order.processing_notes = "\n".join(processed.notes)
-    order.save(update_fields=["processed_image", "preview_image", "print_template", "s3_key", "processing_notes", "updated_at"])
-
-    return render(request, "orders/_preview_card.html", {"order": order})
+    order.save(
+        update_fields=[
+            "processed_image",
+            "preview_image",
+            "print_template",
+            "s3_key",
+            "processing_notes",
+            "crop_head_ratio",
+            "crop_offset_x",
+            "crop_offset_y",
+            "updated_at",
+        ]
+    )
 
 
 @require_POST
