@@ -22,7 +22,7 @@ class Order(models.Model):
     processing_notes = models.TextField(blank=True)
     crop_head_ratio = models.FloatField(default=0.60)
     crop_offset_x = models.FloatField(default=0)
-    crop_offset_y = models.FloatField(default=24)
+    crop_offset_y = models.FloatField(default=54)
     face_center_x = models.FloatField(null=True, blank=True)
     face_eye_y = models.FloatField(null=True, blank=True)
     face_head_top_y = models.FloatField(null=True, blank=True)
