@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 from .forms import PhotoUploadForm
 from .models import Order
 from .services.delivery import send_delivery_email
-from .services.photo_processor import process_order_photo
+from .services.photo_processor import FaceGeometry, prepare_photo_source, process_order_photo, render_visa_photo
 
 MIN_HEAD_RATIO = 0.53
 MAX_HEAD_RATIO = 0.62
@@ -50,7 +50,11 @@ def upload_photo(request):
         return render(request, "orders/_upload_form.html", {"form": form}, status=422)
 
     order = form.save()
-    _regenerate_order_images(order)
+    prepared = prepare_photo_source(order.original_image)
+    version = order.updated_at.strftime("%Y%m%d%H%M%S")
+    order.prepared_image.save(f"{order.id}-{version}-prepared.jpg", prepared.prepared_jpeg, save=False)
+    _set_order_face(order, prepared.face)
+    _regenerate_order_images(order, base_notes=prepared.notes)
 
     return render(request, "orders/_preview_card.html", {"order": order})
 
@@ -64,6 +68,12 @@ def adjust_photo(request, order_id):
         order.crop_head_ratio = max(MIN_HEAD_RATIO, order.crop_head_ratio - RATIO_STEP)
     elif action == "ratio_up":
         order.crop_head_ratio = min(MAX_HEAD_RATIO, order.crop_head_ratio + RATIO_STEP)
+    elif action == "set_ratio":
+        try:
+            head_percent = float(request.POST.get("head_percent", "60"))
+        except ValueError:
+            return HttpResponseBadRequest("Invalid head ratio.")
+        order.crop_head_ratio = min(max(head_percent / 100, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     elif action == "move_left":
         order.crop_offset_x = max(-MAX_OFFSET, order.crop_offset_x - OFFSET_STEP)
     elif action == "move_right":
@@ -83,13 +93,23 @@ def adjust_photo(request, order_id):
     return render(request, "orders/_preview_card.html", {"order": order})
 
 
-def _regenerate_order_images(order):
-    processed = process_order_photo(
-        order.original_image,
-        head_ratio=order.crop_head_ratio,
-        offset_x=order.crop_offset_x,
-        offset_y=order.crop_offset_y,
-    )
+def _regenerate_order_images(order, base_notes=None):
+    if order.prepared_image:
+        processed = render_visa_photo(
+            order.prepared_image,
+            _order_face(order),
+            notes=base_notes,
+            head_ratio=order.crop_head_ratio,
+            offset_x=order.crop_offset_x,
+            offset_y=order.crop_offset_y,
+        )
+    else:
+        processed = process_order_photo(
+            order.original_image,
+            head_ratio=order.crop_head_ratio,
+            offset_x=order.crop_offset_x,
+            offset_y=order.crop_offset_y,
+        )
     version = order.updated_at.strftime("%Y%m%d%H%M%S")
     order.processed_image.save(f"{order.id}-{version}-visa-photo-600.jpg", processed.final_jpeg, save=False)
     order.preview_image.save(f"{order.id}-{version}-preview.jpg", processed.preview_jpeg, save=False)
@@ -103,11 +123,41 @@ def _regenerate_order_images(order):
             "print_template",
             "s3_key",
             "processing_notes",
+            "prepared_image",
             "crop_head_ratio",
             "crop_offset_x",
             "crop_offset_y",
+            "face_center_x",
+            "face_eye_y",
+            "face_head_top_y",
+            "face_chin_y",
             "updated_at",
         ]
+    )
+
+
+def _set_order_face(order, face):
+    if face is None:
+        order.face_center_x = None
+        order.face_eye_y = None
+        order.face_head_top_y = None
+        order.face_chin_y = None
+        return
+
+    order.face_center_x = face.center_x
+    order.face_eye_y = face.eye_y
+    order.face_head_top_y = face.head_top_y
+    order.face_chin_y = face.chin_y
+
+
+def _order_face(order):
+    if None in (order.face_center_x, order.face_eye_y, order.face_head_top_y, order.face_chin_y):
+        return None
+    return FaceGeometry(
+        center_x=order.face_center_x,
+        eye_y=order.face_eye_y,
+        head_top_y=order.face_head_top_y,
+        chin_y=order.face_chin_y,
     )
 
 

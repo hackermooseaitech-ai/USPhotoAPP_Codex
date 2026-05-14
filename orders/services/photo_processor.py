@@ -33,6 +33,13 @@ class ProcessedPhoto:
     notes: list[str]
 
 
+@dataclass(frozen=True)
+class PreparedPhoto:
+    prepared_jpeg: ContentFile
+    face: FaceGeometry | None
+    notes: list[str]
+
+
 def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, offset_x: float = 0, offset_y: float = 0) -> ProcessedPhoto:
     image = Image.open(uploaded_file)
     image = ImageOps.exif_transpose(image).convert("RGB")
@@ -41,7 +48,40 @@ def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, of
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     white_background = _remove_background_to_white(image, notes)
     face = _detect_face_geometry(white_background, notes)
-    final = _crop_to_visa_spec(white_background, face, notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y)
+    return render_visa_photo(white_background, face, notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y)
+
+
+def prepare_photo_source(uploaded_file) -> PreparedPhoto:
+    image = Image.open(uploaded_file)
+    image = ImageOps.exif_transpose(image).convert("RGB")
+
+    notes: list[str] = []
+    white_background = _remove_background_to_white(image, notes)
+    face = _detect_face_geometry(white_background, notes)
+    return PreparedPhoto(
+        prepared_jpeg=_jpeg_file(white_background, "prepared-photo.jpg", quality=94),
+        face=face,
+        notes=notes,
+    )
+
+
+def render_visa_photo(
+    prepared_file,
+    face: FaceGeometry | None,
+    notes: list[str] | None = None,
+    head_ratio: float = TARGET_HEAD_RATIO,
+    offset_x: float = 0,
+    offset_y: float = 0,
+) -> ProcessedPhoto:
+    if isinstance(prepared_file, Image.Image):
+        white_background = prepared_file
+    else:
+        white_background = Image.open(prepared_file)
+    white_background = ImageOps.exif_transpose(white_background).convert("RGB")
+
+    render_notes = list(notes or [])
+    head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
+    final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final)
 
@@ -49,7 +89,7 @@ def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, of
         final_jpeg=_jpeg_file(final, "visa-photo-600.jpg"),
         preview_jpeg=_jpeg_file(preview, "visa-photo-preview.jpg", quality=88),
         print_template_jpeg=_jpeg_file(print_template, "visa-photo-4x6.jpg"),
-        notes=notes,
+        notes=render_notes,
     )
 
 

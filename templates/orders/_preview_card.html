@@ -1,13 +1,68 @@
-<div class="grid gap-5 md:grid-cols-[260px_minmax(0,1fr)]">
+<div class="grid gap-5 md:grid-cols-[300px_minmax(0,1fr)]">
   <div>
-    <a href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}" target="_blank" rel="noopener">
-      <img
-        class="aspect-square w-full rounded-md border border-zinc-200 bg-zinc-100 object-cover shadow-sm"
-        src="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}"
-        alt="Watermarked visa photo preview"
-        loading="eager"
+    <div class="relative aspect-square w-full overflow-hidden rounded-md border border-zinc-200 bg-zinc-100 shadow-sm">
+      <a href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}" target="_blank" rel="noopener">
+        <img
+          class="h-full w-full object-cover"
+          src="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}"
+          alt="Watermarked visa photo preview"
+          loading="eager"
+        >
+      </a>
+
+      <form
+        class="absolute right-3 top-3 grid w-24 grid-cols-3 gap-1 rounded-md border border-white/70 bg-zinc-950/60 p-2 shadow-lg backdrop-blur"
+        hx-post="{% url 'orders:adjust' order.id %}"
+        hx-target="#upload-panel"
+        hx-swap="innerHTML"
       >
-    </a>
+        {% csrf_token %}
+        <span></span>
+        <button class="h-7 rounded bg-white/95 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-100" type="submit" name="action" value="move_up" aria-label="Move head up">↑</button>
+        <span></span>
+        <button class="h-7 rounded bg-white/95 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-100" type="submit" name="action" value="move_left" aria-label="Move head left">←</button>
+        <button class="h-7 rounded bg-white/95 text-xs font-semibold text-zinc-950 transition hover:bg-emerald-100" type="submit" name="action" value="reset" aria-label="Reset crop">•</button>
+        <button class="h-7 rounded bg-white/95 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-100" type="submit" name="action" value="move_right" aria-label="Move head right">→</button>
+        <span></span>
+        <button class="h-7 rounded bg-white/95 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-100" type="submit" name="action" value="move_down" aria-label="Move head down">↓</button>
+        <span></span>
+      </form>
+    </div>
+
+    <form
+      id="head-slider-form"
+      class="mt-4 rounded-md border border-zinc-200 bg-white p-3"
+      hx-post="{% url 'orders:adjust' order.id %}"
+      hx-trigger="change"
+      hx-target="#upload-panel"
+      hx-swap="innerHTML"
+    >
+      {% csrf_token %}
+      <input type="hidden" name="action" value="set_ratio">
+      <div class="mb-2 flex items-center justify-between gap-3">
+        <span class="text-sm font-semibold text-zinc-950">Head size</span>
+        <output id="head-percent-output" class="rounded-md bg-zinc-100 px-2 py-1 text-sm font-semibold text-zinc-950">{{ order.crop_head_percent }}%</output>
+      </div>
+      <div class="grid grid-cols-[42px_minmax(0,1fr)_42px] items-center gap-2">
+        <span class="text-center text-xs font-semibold text-zinc-500">53%</span>
+        <input
+          class="visa-range h-8 w-full"
+          type="range"
+          name="head_percent"
+          min="53"
+          max="62"
+          step="1"
+          value="{{ order.crop_head_percent }}"
+          oninput="document.getElementById('head-percent-output').textContent = `${this.value}%`"
+          aria-label="Head size percentage"
+        >
+        <span class="text-center text-xs font-semibold text-zinc-500">62%</span>
+      </div>
+      <div class="htmx-indicator mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        Updating preview...
+      </div>
+    </form>
+
     <a class="mt-2 block text-center text-xs font-medium text-zinc-600 underline" href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}" target="_blank" rel="noopener">
       Open preview image
     </a>
@@ -16,65 +71,6 @@
   <div>
     <h2 class="text-xl font-semibold">Preview ready</h2>
     <p class="mt-2 text-sm leading-6 text-zinc-600">This preview is watermarked. Checkout unlocks the clean 600x600 JPEG and 4x6 print template.</p>
-
-    <form
-      class="mt-4 space-y-4 rounded-md border border-zinc-200 bg-white p-3"
-      hx-post="{% url 'orders:adjust' order.id %}"
-      hx-target="#upload-panel"
-      hx-swap="innerHTML"
-    >
-      {% csrf_token %}
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <div class="text-sm font-semibold text-zinc-950">Adjust head size</div>
-          <div class="text-xs text-zinc-500">Allowed range 53%-62%</div>
-        </div>
-        <div class="min-w-16 rounded-md bg-zinc-100 px-2 py-1 text-center text-sm font-semibold text-zinc-950">
-          {{ order.crop_head_percent }}%
-        </div>
-      </div>
-
-      <div class="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
-        <button class="h-10 rounded-md border border-zinc-300 bg-white text-lg font-semibold transition hover:border-zinc-500" type="submit" name="action" value="ratio_down" aria-label="Make head smaller">
-          &larr;
-        </button>
-        <div class="h-2 overflow-hidden rounded-full bg-zinc-100">
-          <div class="h-full rounded-full bg-emerald-700" style="width: {{ order.crop_head_progress_percent }}%;"></div>
-        </div>
-        <button class="h-10 rounded-md border border-zinc-300 bg-white text-lg font-semibold transition hover:border-zinc-500" type="submit" name="action" value="ratio_up" aria-label="Make head larger">
-          &rarr;
-        </button>
-      </div>
-
-      <div>
-        <div class="mb-2 text-sm font-semibold text-zinc-950">Move head position</div>
-        <div class="mx-auto grid w-36 grid-cols-3 gap-2">
-          <span></span>
-          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_up" aria-label="Move head up">
-            ↑
-          </button>
-          <span></span>
-          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_left" aria-label="Move head left">
-            ←
-          </button>
-          <button class="h-10 rounded-md border border-zinc-300 bg-white text-xs font-semibold transition hover:border-zinc-500" type="submit" name="action" value="reset">
-            Reset
-          </button>
-          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_right" aria-label="Move head right">
-            →
-          </button>
-          <span></span>
-          <button class="h-10 rounded-md border border-zinc-300 bg-white text-base font-semibold transition hover:border-zinc-500" type="submit" name="action" value="move_down" aria-label="Move head down">
-            ↓
-          </button>
-          <span></span>
-        </div>
-      </div>
-
-      <div class="htmx-indicator rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-        Updating preview...
-      </div>
-    </form>
 
     {% if order.processing_notes %}
       <div class="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs leading-5 text-zinc-600">

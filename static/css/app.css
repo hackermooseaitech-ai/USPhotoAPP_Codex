@@ -78,3 +78,41 @@
 .htmx-request .htmx-indicator {
   display: block;
 }
+
+.visa-range {
+  accent-color: rgb(4 120 87);
+}
+
+.visa-range::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(4 120 87), rgb(20 184 166));
+}
+
+.visa-range::-webkit-slider-thumb {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: -0.42rem;
+  border: 3px solid white;
+  border-radius: 999px;
+  background: rgb(24 24 27);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.24);
+  cursor: grab;
+  -webkit-appearance: none;
+}
+
+.visa-range::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(4 120 87), rgb(20 184 166));
+}
+
+.visa-range::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 3px solid white;
+  border-radius: 999px;
+  background: rgb(24 24 27);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.24);
+  cursor: grab;
+}
