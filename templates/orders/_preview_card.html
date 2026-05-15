@@ -111,6 +111,6 @@
 </div>
 
 <div class="mt-5 flex flex-wrap items-center gap-3">
-  <a class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" href="{% url 'orders:index' %}" data-page-i18n="reloadButton">Reload</a>
+  <button class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" type="button" onclick="document.getElementById('reload-photo-dialog').showModal()" data-page-i18n="reloadButton">Reload</button>
   <button class="inline-flex min-w-28 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = '{% url 'orders:index' %}'; }" data-page-i18n="returnButton">Return</button>
 </div>

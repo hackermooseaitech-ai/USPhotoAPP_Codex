@@ -12,5 +12,33 @@
   <div id="preview-panel" class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
     {% include "orders/_preview_card.html" %}
   </div>
+
+  <dialog id="reload-photo-dialog" class="w-[min(92vw,30rem)] rounded-lg border border-zinc-200 bg-white p-0 shadow-2xl backdrop:bg-zinc-950/50">
+    <form class="p-5" method="post" action="{% url 'orders:upload' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-semibold text-zinc-950" data-page-i18n="reloadModalTitle">Upload a new photo</h2>
+          <p class="mt-2 text-sm leading-6 text-zinc-600" data-page-i18n="reloadModalBody">Choose another portrait and generate a fresh visa photo preview.</p>
+        </div>
+        <button class="rounded-md px-2 py-1 text-xl leading-none text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950" type="button" onclick="document.getElementById('reload-photo-dialog').close()" aria-label="Close">×</button>
+      </div>
+
+      <label class="mt-5 block">
+        <span class="mb-2 block text-sm font-medium text-zinc-950" data-page-i18n="emailLabel">Delivery email</span>
+        <input class="input" type="email" name="email" value="{{ order.email }}" placeholder="email@example.com">
+      </label>
+
+      <label class="mt-4 block">
+        <span class="mb-2 block text-sm font-medium text-zinc-950" data-page-i18n="photoLabel">Portrait photo</span>
+        <input class="block w-full rounded-md border border-zinc-300 bg-white px-3 py-3 text-sm text-zinc-900 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-950 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" type="file" name="original_image" accept="image/*" required>
+      </label>
+
+      <div class="mt-5 flex flex-wrap items-center justify-end gap-3">
+        <button class="inline-flex min-w-24 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 transition hover:border-zinc-500" type="button" onclick="document.getElementById('reload-photo-dialog').close()" data-page-i18n="cancelButton">Cancel</button>
+        <button class="inline-flex min-w-32 items-center justify-center rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800" type="submit" data-page-i18n="uploadNewPhoto">Upload photo</button>
+      </div>
+    </form>
+  </dialog>
 </section>
 {% endblock %}
