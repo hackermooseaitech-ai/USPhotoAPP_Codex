@@ -105,6 +105,12 @@ def adjust_photo(request, order_id):
 
 
 def _regenerate_order_images(order, base_notes=None):
+    if order.prepared_image and _order_face(order) is None:
+        prepared = prepare_photo_source(order.prepared_image)
+        _set_order_face(order, prepared.face)
+        if base_notes is None:
+            base_notes = prepared.notes
+
     if order.prepared_image:
         processed = render_visa_photo(
             order.prepared_image,

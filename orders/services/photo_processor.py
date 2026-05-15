@@ -210,11 +210,12 @@ def _crop_to_visa_spec(
     width, height = image.size
 
     if face is None:
-        side = min(width, height)
-        left = (width - side) / 2
-        top = max(0, (height - side) * 0.38)
-        crop = _safe_square_crop(image, left, top, side)
-        notes.append("Output resized to 600x600 JPEG at 300 DPI.")
+        base_side = min(width, height)
+        zoom_side = base_side * (TARGET_HEAD_RATIO / head_ratio)
+        left = (width - zoom_side) / 2 - (offset_x / OUTPUT_SIZE) * zoom_side
+        top = max(0, (height - zoom_side) * 0.38) - (offset_y / OUTPUT_SIZE) * zoom_side
+        crop = _safe_square_crop(image, left, top, zoom_side)
+        notes.append(f"Output resized to 600x600 JPEG at 300 DPI with fallback zoom target {head_ratio:.0%}.")
         return crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
 
     min_side_for_face = face.head_height / 0.69
@@ -233,7 +234,7 @@ def _crop_to_visa_spec(
 
 def _safe_square_crop(image: Image.Image, left: float, top: float, side: float) -> Image.Image:
     width, height = image.size
-    side = min(side, max(width, height))
+    side = max(1.0, side)
     right = left + side
     bottom = top + side
 
