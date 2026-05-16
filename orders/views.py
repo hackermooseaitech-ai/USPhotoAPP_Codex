@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import stripe
@@ -14,6 +15,8 @@ from .forms import PhotoUploadForm
 from .models import Order
 from .services.delivery import send_delivery_email
 from .services.photo_processor import FaceGeometry, prepare_photo_source, process_order_photo, render_visa_photo
+
+logger = logging.getLogger(__name__)
 
 MIN_HEAD_RATIO = 0.53
 MAX_HEAD_RATIO = 0.62
@@ -271,6 +274,9 @@ def success(request, order_id):
                     order.selected_package = package
                 order.save(update_fields=["status", "selected_package", "stripe_session_id", "updated_at"])
 
+    if order.status == Order.Status.PAID:
+        _ensure_order_images(order)
+
     email_sent = bool(order.delivery_email_sent_at)
     if order.status == Order.Status.PAID and order.email and not order.delivery_email_sent_at:
         email_sent = send_delivery_email(order, request=request)
@@ -306,7 +312,10 @@ def final_photo_file(request, order_id):
         raise Http404("Final photo is not available.")
 
     filename = Path(order.processed_image.name).name
-    response = FileResponse(order.processed_image.open("rb"), filename=filename)
+    try:
+        response = FileResponse(order.processed_image.open("rb"), filename=filename)
+    except FileNotFoundError:
+        raise Http404("Final photo file is no longer available.")
     response["Cache-Control"] = "no-store"
     return response
 
@@ -328,7 +337,26 @@ def download_file(request, order_id, kind):
         raise Http404("This package does not include the 2x2 digital photo.")
 
     filename = Path(field.name).name
-    return FileResponse(field.open("rb"), as_attachment=True, filename=filename)
+    try:
+        return FileResponse(field.open("rb"), as_attachment=True, filename=filename)
+    except FileNotFoundError:
+        raise Http404("Download file is no longer available.")
+
+
+def _ensure_order_images(order):
+    required_fields = [order.processed_image, order.print_template, order.preview_image]
+    if all(_field_exists(field) for field in required_fields):
+        return
+
+    try:
+        _regenerate_order_images(order)
+        order.refresh_from_db()
+    except Exception:
+        logger.exception("Could not regenerate paid order image files for order %s", order.id)
+
+
+def _field_exists(field):
+    return bool(field and field.name and field.storage.exists(field.name))
 
 
 @csrf_exempt
