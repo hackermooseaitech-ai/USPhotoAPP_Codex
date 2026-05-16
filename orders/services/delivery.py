@@ -41,6 +41,10 @@ def send_delivery_email(order: Order, request=None) -> bool:
     except Exception:
         logger.exception("Delivery email failed for order %s", order.id)
         return False
-    order.delivery_email_sent_at = timezone.now()
-    order.save(update_fields=["delivery_email_sent_at", "updated_at"])
+    try:
+        order.delivery_email_sent_at = timezone.now()
+        order.save(update_fields=["delivery_email_sent_at", "updated_at"])
+    except Exception:
+        logger.exception("Could not mark delivery email sent for order %s", order.id)
+        return False
     return True

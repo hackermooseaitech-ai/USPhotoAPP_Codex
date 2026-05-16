@@ -265,21 +265,36 @@ def success(request, order_id):
             session = stripe.checkout.Session.retrieve(session_id)
         except stripe.StripeError as exc:
             messages.warning(request, f"Stripe payment status could not be verified yet: {exc.user_message or str(exc)}")
+        except Exception:
+            logger.exception("Unexpected Stripe verification failure for order %s", order.id)
+            messages.warning(request, "Stripe payment status could not be verified yet. Please refresh this page in a moment.")
         else:
-            if session.get("metadata", {}).get("order_id") == str(order.id) and session.get("payment_status") == "paid":
-                order.status = Order.Status.PAID
-                order.stripe_session_id = session.id
-                package = session.get("metadata", {}).get("package", "")
-                if package in PACKAGE_OPTIONS:
-                    order.selected_package = package
-                order.save(update_fields=["status", "selected_package", "stripe_session_id", "updated_at"])
+            try:
+                if session.get("metadata", {}).get("order_id") == str(order.id) and session.get("payment_status") == "paid":
+                    order.status = Order.Status.PAID
+                    order.stripe_session_id = session.id
+                    package = session.get("metadata", {}).get("package", "")
+                    if package in PACKAGE_OPTIONS:
+                        order.selected_package = package
+                    order.save(update_fields=["status", "selected_package", "stripe_session_id", "updated_at"])
+            except Exception:
+                logger.exception("Could not update paid order from Stripe session for order %s", order.id)
+                messages.warning(request, "The payment succeeded, but the order update needs a moment. Please refresh this page.")
 
     if order.status == Order.Status.PAID:
-        _ensure_order_images(order)
+        try:
+            _ensure_order_images(order)
+        except Exception:
+            logger.exception("Paid order image preparation failed for order %s", order.id)
+            messages.warning(request, "The payment succeeded, but the photo files are still being prepared. Please refresh this page.")
 
     email_sent = bool(order.delivery_email_sent_at)
     if order.status == Order.Status.PAID and order.email and not order.delivery_email_sent_at:
-        email_sent = send_delivery_email(order, request=request)
+        try:
+            email_sent = send_delivery_email(order, request=request)
+        except Exception:
+            logger.exception("Unexpected delivery email failure for order %s", order.id)
+            email_sent = False
         if email_sent:
             order.refresh_from_db(fields=["delivery_email_sent_at", "updated_at"])
         else:
