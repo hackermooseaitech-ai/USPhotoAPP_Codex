@@ -1,9 +1,13 @@
 from django.conf import settings
+import logging
+
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from orders.models import Order
+
+logger = logging.getLogger(__name__)
 
 
 def send_delivery_email(order: Order, request=None) -> bool:
@@ -26,14 +30,18 @@ def send_delivery_email(order: Order, request=None) -> bool:
     text_body = render_to_string("orders/email_delivery.txt", context)
     html_body = render_to_string("orders/email_delivery.html", context)
 
-    send_mail(
-        subject=subject,
-        message=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[order.email],
-        html_message=html_body,
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject=subject,
+            message=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[order.email],
+            html_message=html_body,
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("Delivery email failed for order %s", order.id)
+        return False
     order.delivery_email_sent_at = timezone.now()
     order.save(update_fields=["delivery_email_sent_at", "updated_at"])
     return True

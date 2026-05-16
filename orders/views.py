@@ -271,9 +271,22 @@ def success(request, order_id):
                     order.selected_package = package
                 order.save(update_fields=["status", "selected_package", "stripe_session_id", "updated_at"])
 
+    email_sent = bool(order.delivery_email_sent_at)
     if order.status == Order.Status.PAID and order.email and not order.delivery_email_sent_at:
-        send_delivery_email(order, request=request)
-    return render(request, "orders/success.html", {"order": order, "package": PACKAGE_OPTIONS.get(order.selected_package)})
+        email_sent = send_delivery_email(order, request=request)
+        if email_sent:
+            order.refresh_from_db(fields=["delivery_email_sent_at", "updated_at"])
+        else:
+            messages.warning(request, "The payment succeeded, but email delivery is not configured yet. You can download your files below.")
+    return render(
+        request,
+        "orders/success.html",
+        {
+            "order": order,
+            "package": PACKAGE_OPTIONS.get(order.selected_package),
+            "email_sent": email_sent,
+        },
+    )
 
 
 def preview_file(request, order_id):
@@ -283,6 +296,17 @@ def preview_file(request, order_id):
 
     filename = Path(order.preview_image.name).name
     response = FileResponse(order.preview_image.open("rb"), filename=filename)
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def final_photo_file(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.status != Order.Status.PAID or not order.processed_image:
+        raise Http404("Final photo is not available.")
+
+    filename = Path(order.processed_image.name).name
+    response = FileResponse(order.processed_image.open("rb"), filename=filename)
     response["Cache-Control"] = "no-store"
     return response
 
