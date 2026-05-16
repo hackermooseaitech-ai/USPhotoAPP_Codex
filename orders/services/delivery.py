@@ -13,6 +13,15 @@ logger = logging.getLogger(__name__)
 def send_delivery_email(order: Order, request=None) -> bool:
     if not order.email or order.status != Order.Status.PAID or order.delivery_email_sent_at:
         return False
+    if not _smtp_is_configured():
+        logger.error(
+            "Delivery email is not configured. EMAIL_BACKEND=%s EMAIL_HOST_SET=%s EMAIL_HOST_USER_SET=%s EMAIL_HOST_PASSWORD_SET=%s",
+            settings.EMAIL_BACKEND,
+            bool(settings.EMAIL_HOST),
+            bool(settings.EMAIL_HOST_USER),
+            bool(settings.EMAIL_HOST_PASSWORD),
+        )
+        return False
 
     site_url = settings.SITE_URL
     if request is not None:
@@ -60,3 +69,9 @@ def _attach_order_file(message, field, filename):
             message.attach(filename, file_obj.read(), "image/jpeg")
     except Exception:
         logger.exception("Could not attach delivery file %s", filename)
+
+
+def _smtp_is_configured():
+    if settings.EMAIL_BACKEND.endswith(".console.EmailBackend") or settings.EMAIL_BACKEND.endswith(".locmem.EmailBackend"):
+        return True
+    return bool(settings.EMAIL_HOST and settings.EMAIL_HOST_USER and settings.EMAIL_HOST_PASSWORD)
