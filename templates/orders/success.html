@@ -24,7 +24,7 @@
         {% if email_sent or order.delivery_email_sent_at %}
           <p class="mt-2 text-sm font-semibold text-emerald-700">Your photo has been sent to {{ order.email }}.</p>
         {% else %}
-          <p class="mt-2 text-sm font-semibold text-emerald-700">Your photo has been sent to {{ order.email }}.</p>
+          <p class="mt-2 text-sm font-semibold text-amber-700">Email delivery is still being prepared for {{ order.email }}. You can download your files below.</p>
         {% endif %}
       {% endif %}
       {% if order.processed_image %}

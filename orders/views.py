@@ -269,17 +269,31 @@ def success(request, order_id):
             logger.exception("Unexpected Stripe verification failure for order %s", order.id)
             messages.warning(request, "Stripe payment status could not be verified yet. Please refresh this page in a moment.")
         else:
+            metadata = _stripe_session_metadata(session)
+            session_order_id = str(metadata.get("order_id") or "")
+            session_package = metadata.get("package") or order.selected_package
+            session_is_paid = _stripe_session_value(session, "payment_status") == "paid"
+            session_matches_order = session_order_id == str(order.id) or order.stripe_session_id == session_id
             try:
-                if session.get("metadata", {}).get("order_id") == str(order.id) and session.get("payment_status") == "paid":
-                    order.status = Order.Status.PAID
-                    order.stripe_session_id = session.id
-                    package = session.get("metadata", {}).get("package", "")
-                    if package in PACKAGE_OPTIONS:
-                        order.selected_package = package
-                    order.save(update_fields=["status", "selected_package", "stripe_session_id", "updated_at"])
+                if session_is_paid and session_matches_order:
+                    updates = {
+                        "status": Order.Status.PAID,
+                        "stripe_session_id": _stripe_session_value(session, "id", session_id),
+                    }
+                    if session_package in PACKAGE_OPTIONS:
+                        updates["selected_package"] = session_package
+                    Order.objects.filter(id=order.id).update(**updates)
+                    order.refresh_from_db()
             except Exception:
                 logger.exception("Could not update paid order from Stripe session for order %s", order.id)
-                messages.warning(request, "The payment succeeded, but the order update needs a moment. Please refresh this page.")
+                if session_is_paid and session_matches_order:
+                    order.status = Order.Status.PAID
+                    order.stripe_session_id = _stripe_session_value(session, "id", session_id)
+                    if session_package in PACKAGE_OPTIONS:
+                        order.selected_package = session_package
+                    messages.warning(request, "The payment succeeded, but the order record could not be saved yet. You can still download your files below.")
+                else:
+                    messages.warning(request, "The payment succeeded, but the order update needs a moment. Please refresh this page.")
 
     if order.status == Order.Status.PAID:
         try:
@@ -308,6 +322,24 @@ def success(request, order_id):
             "email_sent": email_sent,
         },
     )
+
+
+def _stripe_session_value(session, key, default=None):
+    try:
+        value = session.get(key, default)
+    except AttributeError:
+        value = getattr(session, key, default)
+    return default if value is None else value
+
+
+def _stripe_session_metadata(session):
+    metadata = _stripe_session_value(session, "metadata", {}) or {}
+    if hasattr(metadata, "to_dict"):
+        metadata = metadata.to_dict()
+    try:
+        return dict(metadata)
+    except (TypeError, ValueError):
+        return {}
 
 
 def preview_file(request, order_id):
