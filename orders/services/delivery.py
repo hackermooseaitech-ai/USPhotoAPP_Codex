@@ -18,19 +18,18 @@ def send_delivery_email(order: Order, request=None) -> bool:
     if request is not None:
         site_url = request.build_absolute_uri("/").rstrip("/")
 
-    context = {
-        "order": order,
-        "photo_url": f"{site_url}/download/{order.id}/photo/",
-        "print_url": f"{site_url}/download/{order.id}/print/",
-        "include_photo": order.selected_package != Order.Package.PRINT,
-        "include_print": order.selected_package != Order.Package.PHOTO,
-        "site_url": site_url,
-    }
-    subject = "Your Hacker Moose US visa photo is ready"
-    text_body = render_to_string("orders/email_delivery.txt", context)
-    html_body = render_to_string("orders/email_delivery.html", context)
-
     try:
+        context = {
+            "order": order,
+            "photo_url": f"{site_url}/download/{order.id}/photo/",
+            "print_url": f"{site_url}/download/{order.id}/print/",
+            "include_photo": order.selected_package != Order.Package.PRINT,
+            "include_print": order.selected_package != Order.Package.PHOTO,
+            "site_url": site_url,
+        }
+        subject = "Your Hacker Moose US visa photo is ready"
+        text_body = render_to_string("orders/email_delivery.txt", context)
+        html_body = render_to_string("orders/email_delivery.html", context)
         send_mail(
             subject=subject,
             message=text_body,
