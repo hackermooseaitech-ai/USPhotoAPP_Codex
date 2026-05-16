@@ -277,13 +277,9 @@ def _add_watermark(image: Image.Image) -> Image.Image:
 def _make_4x6_print_template(photo: Image.Image) -> Image.Image:
     canvas = Image.new("RGB", PRINT_TEMPLATE_SIZE, "#FFFFFF")
     photo = photo.resize((600, 600), Image.Resampling.LANCZOS)
-    positions = [(240, 110), (960, 110), (240, 710), (960, 710)]
+    positions = [(0, 0), (600, 0), (1200, 0), (0, 600), (600, 600), (1200, 600)]
     for position in positions:
         canvas.paste(photo, position)
-
-    draw = ImageDraw.Draw(canvas)
-    font = _font(34)
-    draw.text((52, 38), "Hacker Moose - US Visa Photo 2x2 in, 300 DPI", fill="#111827", font=font)
     return canvas
 
 

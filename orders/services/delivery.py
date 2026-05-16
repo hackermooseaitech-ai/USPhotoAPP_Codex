@@ -18,6 +18,8 @@ def send_delivery_email(order: Order, request=None) -> bool:
         "order": order,
         "photo_url": f"{site_url}/download/{order.id}/photo/",
         "print_url": f"{site_url}/download/{order.id}/print/",
+        "include_photo": order.selected_package != Order.Package.PRINT,
+        "include_print": order.selected_package != Order.Package.PHOTO,
         "site_url": site_url,
     }
     subject = "Your Hacker Moose US visa photo is ready"

@@ -21,6 +21,32 @@ RATIO_STEP = 0.01
 OFFSET_STEP = 18
 MAX_OFFSET = 96
 DEFAULT_OFFSET_Y = 54
+PACKAGE_OPTIONS = {
+    Order.Package.PHOTO: {
+        "key": Order.Package.PHOTO,
+        "name": "Square 2x2 digital photo",
+        "short_name": "2x2 Photo",
+        "price": "$5.99",
+        "cents": 599,
+        "description": "One clean 600x600 JPEG for online forms and digital upload.",
+    },
+    Order.Package.PRINT: {
+        "key": Order.Package.PRINT,
+        "name": "4x6 print sheet",
+        "short_name": "4x6 Sheet",
+        "price": "$5.99",
+        "cents": 599,
+        "description": "Six 2x2 photos arranged on one 4x6 inch print-ready sheet.",
+    },
+    Order.Package.BUNDLE: {
+        "key": Order.Package.BUNDLE,
+        "name": "Digital + print bundle",
+        "short_name": "Bundle",
+        "price": "$9.99",
+        "cents": 999,
+        "description": "Both the 600x600 JPEG and the 4x6 six-photo print sheet.",
+    },
+}
 
 
 def index(request):
@@ -68,6 +94,11 @@ def upload_photo(request):
 def edit_photo(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     return render(request, "orders/edit.html", {"order": order})
+
+
+def packages(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    return render(request, "orders/packages.html", {"order": order, "packages": PACKAGE_OPTIONS.values()})
 
 
 @require_POST
@@ -179,14 +210,18 @@ def _order_face(order):
 
 
 @require_POST
-def create_checkout_session(request, order_id):
+def create_checkout_session(request, order_id, package):
     order = get_object_or_404(Order, id=order_id)
     if order.status == Order.Status.PAID:
         return redirect("orders:success", order_id=order.id)
 
+    package_option = PACKAGE_OPTIONS.get(package)
+    if not package_option:
+        raise Http404("Unknown package.")
+
     if not settings.STRIPE_SECRET_KEY:
         messages.error(request, "Stripe is not configured yet. Add STRIPE_SECRET_KEY to .env.")
-        return redirect("orders:index")
+        return redirect("orders:packages", order_id=order.id)
 
     stripe.api_key = settings.STRIPE_SECRET_KEY
     try:
@@ -198,22 +233,23 @@ def create_checkout_session(request, order_id):
                 {
                     "price_data": {
                         "currency": "usd",
-                        "product_data": {"name": "Hacker Moose US Visa Photo"},
-                        "unit_amount": settings.STRIPE_PRICE_CENTS,
+                        "product_data": {"name": f"Hacker Moose US Visa Photo - {package_option['short_name']}"},
+                        "unit_amount": package_option["cents"],
                     },
                     "quantity": 1,
                 }
             ],
-            metadata={"order_id": str(order.id)},
+            metadata={"order_id": str(order.id), "package": package},
             success_url=f"{settings.SITE_URL}{reverse('orders:success', args=[order.id])}?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{settings.SITE_URL}{reverse('orders:index')}",
+            cancel_url=f"{settings.SITE_URL}{reverse('orders:packages', args=[order.id])}",
         )
     except stripe.StripeError as exc:
         messages.error(request, f"Stripe checkout could not be created: {exc.user_message or str(exc)}")
-        return redirect("orders:index")
+        return redirect("orders:packages", order_id=order.id)
 
+    order.selected_package = package
     order.stripe_session_id = session.id
-    order.save(update_fields=["stripe_session_id", "updated_at"])
+    order.save(update_fields=["selected_package", "stripe_session_id", "updated_at"])
     return redirect(session.url)
 
 
@@ -230,11 +266,14 @@ def success(request, order_id):
             if session.get("metadata", {}).get("order_id") == str(order.id) and session.get("payment_status") == "paid":
                 order.status = Order.Status.PAID
                 order.stripe_session_id = session.id
-                order.save(update_fields=["status", "stripe_session_id", "updated_at"])
+                package = session.get("metadata", {}).get("package", "")
+                if package in PACKAGE_OPTIONS:
+                    order.selected_package = package
+                order.save(update_fields=["status", "selected_package", "stripe_session_id", "updated_at"])
 
     if order.status == Order.Status.PAID and order.email and not order.delivery_email_sent_at:
         send_delivery_email(order, request=request)
-    return render(request, "orders/success.html", {"order": order})
+    return render(request, "orders/success.html", {"order": order, "package": PACKAGE_OPTIONS.get(order.selected_package)})
 
 
 def preview_file(request, order_id):
@@ -259,6 +298,10 @@ def download_file(request, order_id, kind):
     }.get(kind)
     if not field:
         raise Http404("Unknown download type.")
+    if order.selected_package == Order.Package.PHOTO and kind != "photo":
+        raise Http404("This package does not include the 4x6 print sheet.")
+    if order.selected_package == Order.Package.PRINT and kind != "print":
+        raise Http404("This package does not include the 2x2 digital photo.")
 
     filename = Path(field.name).name
     return FileResponse(field.open("rb"), as_attachment=True, filename=filename)
@@ -288,6 +331,7 @@ def stripe_webhook(request):
         if order_id and session.get("payment_status") == "paid":
             Order.objects.filter(id=order_id).update(
                 status=Order.Status.PAID,
+                selected_package=session.get("metadata", {}).get("package", ""),
                 stripe_session_id=session.get("id", ""),
             )
             order = Order.objects.filter(id=order_id).first()

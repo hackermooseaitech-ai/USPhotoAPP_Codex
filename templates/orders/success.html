@@ -13,15 +13,25 @@
     {% endif %}
 
     {% if order.status == "paid" %}
-      <p class="mt-3 text-zinc-700">Download your clean U.S. visa photo and 4x6 print template.</p>
+      <p class="mt-3 text-zinc-700">
+        {% if package %}
+          Your {{ package.name }} is ready.
+        {% else %}
+          Download your clean U.S. visa photo and 4x6 print template.
+        {% endif %}
+      </p>
       {% if order.delivery_email_sent_at %}
         <p class="mt-2 text-sm text-emerald-700">Delivery email sent to {{ order.email }}.</p>
       {% elif order.email %}
         <p class="mt-2 text-sm text-amber-700">Delivery email is pending.</p>
       {% endif %}
       <div class="mt-6 grid gap-3 sm:grid-cols-2">
-        <a class="inline-flex items-center justify-center rounded-md bg-zinc-950 px-4 py-3 text-sm font-semibold text-white" href="{% url 'orders:download' order.id 'photo' %}">Download 600x600 JPEG</a>
-        <a class="inline-flex items-center justify-center rounded-md border border-zinc-300 px-4 py-3 text-sm font-semibold text-zinc-950" href="{% url 'orders:download' order.id 'print' %}">Download 4x6 template</a>
+        {% if order.selected_package != "print" %}
+          <a class="inline-flex items-center justify-center rounded-md bg-zinc-950 px-4 py-3 text-sm font-semibold text-white" href="{% url 'orders:download' order.id 'photo' %}">Download 600x600 JPEG</a>
+        {% endif %}
+        {% if order.selected_package != "photo" %}
+          <a class="inline-flex items-center justify-center rounded-md border border-zinc-300 px-4 py-3 text-sm font-semibold text-zinc-950" href="{% url 'orders:download' order.id 'print' %}">Download 4x6 template</a>
+        {% endif %}
       </div>
     {% else %}
       <p class="mt-3 text-zinc-700">Payment confirmation is still pending. Refresh this page after Stripe completes the checkout webhook.</p>

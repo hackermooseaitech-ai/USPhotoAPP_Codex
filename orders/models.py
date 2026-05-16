@@ -9,9 +9,15 @@ class Order(models.Model):
         PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
 
+    class Package(models.TextChoices):
+        PHOTO = "photo", "2x2 Photo"
+        PRINT = "print", "4x6 Print"
+        BUNDLE = "bundle", "2x2 + 4x6"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    selected_package = models.CharField(max_length=16, choices=Package.choices, blank=True)
     stripe_session_id = models.CharField(max_length=255, blank=True)
     original_image = models.ImageField(upload_to="orders/original/")
     prepared_image = models.ImageField(upload_to="orders/prepared/", blank=True)
