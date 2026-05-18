@@ -1,11 +1,12 @@
 import json
 import logging
+import secrets
 from pathlib import Path
 
 import stripe
 from django.conf import settings
 from django.contrib import messages
-from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -13,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import PhotoUploadForm
 from .models import Order
-from .services.delivery import send_delivery_email
+from .services.delivery import send_delivery_email, send_test_delivery_email
 from .services.photo_processor import FaceGeometry, prepare_photo_source, process_order_photo, render_visa_photo
 
 logger = logging.getLogger(__name__)
@@ -388,6 +389,27 @@ def download_file(request, order_id, kind):
         return FileResponse(field.open("rb"), as_attachment=True, filename=filename)
     except FileNotFoundError:
         raise Http404("Download file is no longer available.")
+
+
+def test_email(request):
+    configured_token = settings.ADMIN_TEST_TOKEN
+    supplied_token = request.GET.get("token", "")
+    to_email = request.GET.get("to", "").strip()
+    if not configured_token or not secrets.compare_digest(supplied_token, configured_token):
+        return JsonResponse({"ok": False, "error": "Invalid token."}, status=403)
+    if not to_email:
+        return JsonResponse({"ok": False, "error": "Missing to email."}, status=400)
+
+    sent = send_test_delivery_email(to_email)
+    return JsonResponse(
+        {
+            "ok": sent,
+            "to": to_email,
+            "provider": "resend" if settings.RESEND_API_KEY else "smtp",
+            "from": settings.RESEND_FROM_EMAIL if settings.RESEND_API_KEY else settings.DEFAULT_FROM_EMAIL,
+        },
+        status=200 if sent else 502,
+    )
 
 
 def _ensure_order_images(order):
