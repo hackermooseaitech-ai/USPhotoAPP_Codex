@@ -46,8 +46,23 @@ def send_delivery_email(order: Order, request=None) -> bool:
         html_body = render_to_string("orders/email_delivery.html", context)
         attachments = _build_delivery_attachments(order, context)
         if settings.RESEND_API_KEY:
+            logger.info(
+                "Delivery email using Resend for order %s from=%s to=%s attachments=%s",
+                order.id,
+                settings.RESEND_FROM_EMAIL,
+                order.email,
+                len(attachments),
+            )
             _send_resend_email(order.email, subject, text_body, html_body, attachments)
         else:
+            logger.info(
+                "Delivery email using SMTP for order %s host=%s user_set=%s to=%s attachments=%s",
+                order.id,
+                settings.EMAIL_HOST,
+                bool(settings.EMAIL_HOST_USER),
+                order.email,
+                len(attachments),
+            )
             _send_smtp_email(order.email, subject, text_body, html_body, attachments)
     except Exception:
         logger.exception("Delivery email failed for order %s", order.id)
@@ -55,6 +70,7 @@ def send_delivery_email(order: Order, request=None) -> bool:
     try:
         order.delivery_email_sent_at = timezone.now()
         order.save(update_fields=["delivery_email_sent_at", "updated_at"])
+        logger.info("Delivery email marked sent for order %s", order.id)
     except Exception:
         logger.exception("Could not mark delivery email sent for order %s", order.id)
         return False
@@ -75,6 +91,12 @@ def _send_smtp_email(to_email, subject, text_body, html_body, attachments):
 
 
 def _send_resend_email(to_email, subject, text_body, html_body, attachments):
+    if "resend.dev" in settings.RESEND_FROM_EMAIL:
+        logger.warning(
+            "RESEND_FROM_EMAIL uses resend.dev test domain. Resend can only send this to the account email, not arbitrary customer emails. from=%s to=%s",
+            settings.RESEND_FROM_EMAIL,
+            to_email,
+        )
     payload = {
         "from": settings.RESEND_FROM_EMAIL,
         "to": [to_email],
@@ -100,8 +122,10 @@ def _send_resend_email(to_email, subject, text_body, html_body, attachments):
     )
     try:
         with urlopen(request, timeout=settings.EMAIL_TIMEOUT) as response:
+            body = response.read().decode("utf-8", errors="replace")
             if response.status >= 400:
-                raise RuntimeError(f"Resend returned HTTP {response.status}")
+                raise RuntimeError(f"Resend returned HTTP {response.status}: {body}")
+            logger.info("Resend email accepted with HTTP %s: %s", response.status, body)
     except HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         logger.error("Resend email failed with HTTP %s: %s", exc.code, body)
