@@ -45,8 +45,11 @@ def send_test_delivery_email(to_email: str) -> bool:
     return True
 
 
-def send_delivery_email(order: Order, request=None) -> bool:
-    if not order.email or order.status != Order.Status.PAID or order.delivery_email_sent_at:
+def send_delivery_email(order: Order, request=None, force: bool = False) -> bool:
+    if not order.email or order.status != Order.Status.PAID:
+        return False
+    if order.delivery_email_sent_at and not force:
+        logger.warning("Delivery email skipped for order %s because it was already marked sent.", order.id)
         return False
     if not settings.RESEND_API_KEY and not _smtp_is_configured():
         logger.error(

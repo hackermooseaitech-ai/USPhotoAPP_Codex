@@ -304,9 +304,10 @@ def success(request, order_id):
             messages.warning(request, "The payment succeeded, but the photo files are still being prepared. Please refresh this page.")
 
     email_sent = bool(order.delivery_email_sent_at)
-    if order.status == Order.Status.PAID and order.email and not order.delivery_email_sent_at:
+    force_email = request.GET.get("send_email") == "1"
+    if order.status == Order.Status.PAID and order.email and (force_email or not order.delivery_email_sent_at):
         try:
-            email_sent = send_delivery_email(order, request=request)
+            email_sent = send_delivery_email(order, request=request, force=force_email)
         except Exception:
             logger.exception("Unexpected delivery email failure for order %s", order.id)
             email_sent = False
@@ -427,7 +428,7 @@ def resend_order_email(request, order_id):
     _ensure_order_images(order)
     order.delivery_email_sent_at = None
     order.save(update_fields=["delivery_email_sent_at", "updated_at"])
-    sent = send_delivery_email(order, request=request)
+    sent = send_delivery_email(order, request=request, force=True)
     order.refresh_from_db()
     return JsonResponse(
         {
