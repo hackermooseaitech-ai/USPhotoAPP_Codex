@@ -16,5 +16,6 @@ urlpatterns = [
     path("success/<uuid:order_id>/", views.success, name="success"),
     path("download/<uuid:order_id>/<str:kind>/", views.download_file, name="download"),
     path("admin-tools/test-email/", views.test_email, name="test_email"),
+    path("admin-tools/resend-order/<uuid:order_id>/", views.resend_order_email, name="resend_order_email"),
     path("stripe/webhook/", views.stripe_webhook, name="stripe_webhook"),
 ]

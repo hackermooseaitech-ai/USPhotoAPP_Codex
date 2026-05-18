@@ -412,6 +412,39 @@ def test_email(request):
     )
 
 
+def resend_order_email(request, order_id):
+    configured_token = settings.ADMIN_TEST_TOKEN
+    supplied_token = request.GET.get("token", "")
+    if not configured_token or not secrets.compare_digest(supplied_token, configured_token):
+        return JsonResponse({"ok": False, "error": "Invalid token."}, status=403)
+
+    order = get_object_or_404(Order, id=order_id)
+    if order.status != Order.Status.PAID:
+        return JsonResponse({"ok": False, "error": "Order is not paid.", "status": order.status}, status=400)
+    if not order.email:
+        return JsonResponse({"ok": False, "error": "Order has no delivery email."}, status=400)
+
+    _ensure_order_images(order)
+    order.delivery_email_sent_at = None
+    order.save(update_fields=["delivery_email_sent_at", "updated_at"])
+    sent = send_delivery_email(order, request=request)
+    order.refresh_from_db()
+    return JsonResponse(
+        {
+            "ok": sent,
+            "order_id": str(order.id),
+            "to": order.email,
+            "provider": "resend" if settings.RESEND_API_KEY else "smtp",
+            "from": settings.RESEND_FROM_EMAIL if settings.RESEND_API_KEY else settings.DEFAULT_FROM_EMAIL,
+            "selected_package": order.selected_package,
+            "has_photo": bool(order.processed_image),
+            "has_print": bool(order.print_template),
+            "email_sent_at": order.delivery_email_sent_at.isoformat() if order.delivery_email_sent_at else None,
+        },
+        status=200 if sent else 502,
+    )
+
+
 def _ensure_order_images(order):
     required_fields = [order.processed_image, order.print_template, order.preview_image]
     if all(_field_exists(field) for field in required_fields):
