@@ -15,6 +15,36 @@ from orders.models import Order
 logger = logging.getLogger(__name__)
 
 
+def send_test_delivery_email(to_email: str) -> bool:
+    if not to_email:
+        return False
+
+    subject = "Hacker Moose email delivery test"
+    text_body = "This is a Hacker Moose delivery email test. If you received this, the email provider is connected."
+    html_body = "<p>This is a <strong>Hacker Moose</strong> delivery email test. If you received this, the email provider is connected.</p>"
+    try:
+        if settings.RESEND_API_KEY:
+            logger.warning(
+                "Test email using Resend from=%s to=%s",
+                settings.RESEND_FROM_EMAIL,
+                to_email,
+            )
+            _send_resend_email(to_email, subject, text_body, html_body, [])
+        else:
+            logger.warning(
+                "Test email using SMTP host=%s user_set=%s to=%s",
+                settings.EMAIL_HOST,
+                bool(settings.EMAIL_HOST_USER),
+                to_email,
+            )
+            _send_smtp_email(to_email, subject, text_body, html_body, [])
+    except Exception:
+        logger.exception("Test delivery email failed for %s", to_email)
+        return False
+    logger.warning("Test delivery email sent to %s", to_email)
+    return True
+
+
 def send_delivery_email(order: Order, request=None) -> bool:
     if not order.email or order.status != Order.Status.PAID or order.delivery_email_sent_at:
         return False
@@ -46,7 +76,7 @@ def send_delivery_email(order: Order, request=None) -> bool:
         html_body = render_to_string("orders/email_delivery.html", context)
         attachments = _build_delivery_attachments(order, context)
         if settings.RESEND_API_KEY:
-            logger.info(
+            logger.warning(
                 "Delivery email using Resend for order %s from=%s to=%s attachments=%s",
                 order.id,
                 settings.RESEND_FROM_EMAIL,
@@ -55,7 +85,7 @@ def send_delivery_email(order: Order, request=None) -> bool:
             )
             _send_resend_email(order.email, subject, text_body, html_body, attachments)
         else:
-            logger.info(
+            logger.warning(
                 "Delivery email using SMTP for order %s host=%s user_set=%s to=%s attachments=%s",
                 order.id,
                 settings.EMAIL_HOST,
@@ -70,7 +100,7 @@ def send_delivery_email(order: Order, request=None) -> bool:
     try:
         order.delivery_email_sent_at = timezone.now()
         order.save(update_fields=["delivery_email_sent_at", "updated_at"])
-        logger.info("Delivery email marked sent for order %s", order.id)
+        logger.warning("Delivery email marked sent for order %s", order.id)
     except Exception:
         logger.exception("Could not mark delivery email sent for order %s", order.id)
         return False
@@ -125,7 +155,7 @@ def _send_resend_email(to_email, subject, text_body, html_body, attachments):
             body = response.read().decode("utf-8", errors="replace")
             if response.status >= 400:
                 raise RuntimeError(f"Resend returned HTTP {response.status}: {body}")
-            logger.info("Resend email accepted with HTTP %s: %s", response.status, body)
+            logger.warning("Resend email accepted with HTTP %s: %s", response.status, body)
     except HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         logger.error("Resend email failed with HTTP %s: %s", exc.code, body)
