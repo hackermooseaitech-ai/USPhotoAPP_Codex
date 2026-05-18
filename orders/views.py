@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import PhotoUploadForm
 from .models import Order
-from .services.delivery import send_delivery_email, send_test_delivery_email
+from .services.delivery import delivery_attachment_summary, send_delivery_email, send_test_delivery_email
 from .services.photo_processor import FaceGeometry, prepare_photo_source, process_order_photo, render_visa_photo
 
 logger = logging.getLogger(__name__)
@@ -443,6 +443,29 @@ def resend_order_email(request, order_id):
             "email_sent_at": order.delivery_email_sent_at.isoformat() if order.delivery_email_sent_at else None,
         },
         status=200 if sent else 502,
+    )
+
+
+def order_delivery_status(request, order_id):
+    configured_token = settings.ADMIN_TEST_TOKEN
+    supplied_token = request.GET.get("token", "")
+    if not configured_token or not secrets.compare_digest(supplied_token, configured_token):
+        return JsonResponse({"ok": False, "error": "Invalid token."}, status=403)
+
+    order = get_object_or_404(Order, id=order_id)
+    summary = delivery_attachment_summary(order)
+    return JsonResponse(
+        {
+            "ok": True,
+            "order_id": str(order.id),
+            "status": order.status,
+            "to": order.email,
+            "selected_package": order.selected_package,
+            "delivery_email_sent_at": order.delivery_email_sent_at.isoformat() if order.delivery_email_sent_at else None,
+            "provider": "resend" if settings.RESEND_API_KEY else "smtp",
+            "from": settings.RESEND_FROM_EMAIL if settings.RESEND_API_KEY else settings.DEFAULT_FROM_EMAIL,
+            **summary,
+        }
     )
 
 

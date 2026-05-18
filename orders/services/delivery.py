@@ -45,6 +45,21 @@ def send_test_delivery_email(to_email: str) -> bool:
     return True
 
 
+def delivery_attachment_summary(order: Order) -> dict:
+    context = {
+        "include_photo": order.selected_package != Order.Package.PRINT,
+        "include_print": order.selected_package != Order.Package.PHOTO,
+    }
+    attachments = _build_delivery_attachments(order, context)
+    return {
+        "include_photo": context["include_photo"],
+        "include_print": context["include_print"],
+        "attachment_count": len(attachments),
+        "processed_image_name": order.processed_image.name if order.processed_image else "",
+        "print_template_name": order.print_template.name if order.print_template else "",
+    }
+
+
 def send_delivery_email(order: Order, request=None, force: bool = False) -> bool:
     if not order.email or order.status != Order.Status.PAID:
         return False
