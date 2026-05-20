@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections import deque
 from io import BytesIO
 from pathlib import Path
 
@@ -84,6 +85,7 @@ def render_visa_photo(
     render_notes = list(notes or [])
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
+    final = _replace_edge_connected_near_white(final, background_color, render_notes)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final, background_color)
 
@@ -233,6 +235,56 @@ def _crop_to_visa_spec(
     effective_eye_from_bottom = TARGET_EYE_HEIGHT_FROM_BOTTOM - (offset_y / OUTPUT_SIZE)
     notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line near {effective_eye_from_bottom:.0%} from the bottom, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
     return final
+
+
+def _replace_edge_connected_near_white(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image:
+    image = image.convert("RGB")
+    pixels = image.load()
+    width, height = image.size
+    target = _hex_to_rgb(background_color)
+    visited: set[tuple[int, int]] = set()
+    queue: deque[tuple[int, int]] = deque()
+
+    def enqueue_if_background(x: int, y: int):
+        if (x, y) in visited or not _is_neutral_background_pixel(pixels[x, y]):
+            return
+        visited.add((x, y))
+        queue.append((x, y))
+
+    for x in range(width):
+        enqueue_if_background(x, 0)
+        enqueue_if_background(x, height - 1)
+    for y in range(height):
+        enqueue_if_background(0, y)
+        enqueue_if_background(width - 1, y)
+
+    while queue:
+        x, y = queue.popleft()
+        pixels[x, y] = target
+        if x > 0:
+            enqueue_if_background(x - 1, y)
+        if x < width - 1:
+            enqueue_if_background(x + 1, y)
+        if y > 0:
+            enqueue_if_background(x, y - 1)
+        if y < height - 1:
+            enqueue_if_background(x, y + 1)
+
+    if visited:
+        notes.append(f"Adjusted {len(visited)} edge-connected near-white background pixels to {background_color}.")
+    return image
+
+
+def _is_neutral_background_pixel(pixel: tuple[int, int, int]) -> bool:
+    r, g, b = pixel
+    brightness = (r + g + b) / 3
+    chroma = max(r, g, b) - min(r, g, b)
+    return brightness >= 138 and chroma <= 42
+
+
+def _hex_to_rgb(color: str) -> tuple[int, int, int]:
+    color = color.lstrip("#")
+    return int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
 
 
 def _safe_square_crop(image: Image.Image, left: float, top: float, side: float, background_color: str = DEFAULT_BACKGROUND_COLOR) -> Image.Image:
