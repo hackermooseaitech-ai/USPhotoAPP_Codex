@@ -85,7 +85,7 @@ def render_visa_photo(
     render_notes = list(notes or [])
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
-    final = _replace_edge_connected_near_white(final, background_color, render_notes)
+    final = _replace_background_from_edges(final, background_color, render_notes)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final, background_color)
 
@@ -237,16 +237,17 @@ def _crop_to_visa_spec(
     return final
 
 
-def _replace_edge_connected_near_white(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image:
+def _replace_background_from_edges(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image:
     image = image.convert("RGB")
     pixels = image.load()
     width, height = image.size
     target = _hex_to_rgb(background_color)
+    edge_color = _estimate_edge_background_color(image)
     visited: set[tuple[int, int]] = set()
     queue: deque[tuple[int, int]] = deque()
 
     def enqueue_if_background(x: int, y: int):
-        if (x, y) in visited or not _is_neutral_background_pixel(pixels[x, y]):
+        if (x, y) in visited or not _looks_like_background(pixels[x, y], edge_color):
             return
         visited.add((x, y))
         queue.append((x, y))
@@ -271,15 +272,45 @@ def _replace_edge_connected_near_white(image: Image.Image, background_color: str
             enqueue_if_background(x, y + 1)
 
     if visited:
-        notes.append(f"Adjusted {len(visited)} edge-connected near-white background pixels to {background_color}.")
+        notes.append(f"Adjusted {len(visited)} edge-connected background pixels to {background_color}.")
     return image
 
 
-def _is_neutral_background_pixel(pixel: tuple[int, int, int]) -> bool:
+def _estimate_edge_background_color(image: Image.Image) -> tuple[int, int, int]:
+    width, height = image.size
+    pixels = image.load()
+    samples = []
+    step = max(1, min(width, height) // 30)
+
+    for x in range(0, width, step):
+        samples.append(pixels[x, 0])
+        samples.append(pixels[x, height - 1])
+    for y in range(0, height, step):
+        samples.append(pixels[0, y])
+        samples.append(pixels[width - 1, y])
+
+    neutral_samples = [pixel for pixel in samples if _is_plain_background_candidate(pixel)]
+    if len(neutral_samples) >= 4:
+        samples = neutral_samples
+
+    return tuple(sorted(channel)[len(channel) // 2] for channel in zip(*samples))
+
+
+def _looks_like_background(pixel: tuple[int, int, int], edge_color: tuple[int, int, int]) -> bool:
+    if _color_distance(pixel, edge_color) <= 62:
+        return True
+    return _is_plain_background_candidate(pixel)
+
+
+def _is_plain_background_candidate(pixel: tuple[int, int, int]) -> bool:
     r, g, b = pixel
     brightness = (r + g + b) / 3
     chroma = max(r, g, b) - min(r, g, b)
-    return brightness >= 138 and chroma <= 42
+    return brightness >= 128 and chroma <= 58
+
+
+def _color_distance(first: tuple[int, int, int], second: tuple[int, int, int]) -> float:
+    return sum((a - b) ** 2 for a, b in zip(first, second)) ** 0.5
 
 
 def _hex_to_rgb(color: str) -> tuple[int, int, int]:

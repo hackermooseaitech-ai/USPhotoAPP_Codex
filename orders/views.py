@@ -27,8 +27,8 @@ MAX_OFFSET = 96
 DEFAULT_OFFSET_Y = 54
 BACKGROUND_OPTIONS = {
     Order.Background.WHITE: {"key": Order.Background.WHITE, "label": "白色", "color": "#FFFFFF"},
-    Order.Background.SOFT_WHITE: {"key": Order.Background.SOFT_WHITE, "label": "淺淺白灰色", "color": "#FAFAFA"},
-    Order.Background.LIGHT_GRAY: {"key": Order.Background.LIGHT_GRAY, "label": "淺白灰色", "color": "#F5F5F5"},
+    Order.Background.SOFT_WHITE: {"key": Order.Background.SOFT_WHITE, "label": "淺淺白灰色", "color": "#F7F7F2"},
+    Order.Background.LIGHT_GRAY: {"key": Order.Background.LIGHT_GRAY, "label": "淺白灰色", "color": "#EEEEEA"},
 }
 PACKAGE_OPTIONS = {
     Order.Package.PHOTO: {
