@@ -13,6 +13,7 @@ urlpatterns = [
     path("checkout/<uuid:order_id>/<str:package>/", views.create_checkout_session, name="checkout"),
     path("preview/<uuid:order_id>/", views.preview_file, name="preview"),
     path("final/<uuid:order_id>/", views.final_photo_file, name="final_photo"),
+    path("print-template/<uuid:order_id>/", views.print_template_file, name="print_template"),
     path("success/<uuid:order_id>/", views.success, name="success"),
     path("download/<uuid:order_id>/<str:kind>/", views.download_file, name="download"),
     path("admin-tools/test-email/", views.test_email, name="test_email"),

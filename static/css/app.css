@@ -83,6 +83,10 @@
   accent-color: rgb(4 120 87);
 }
 
+.visa-photo-frame {
+  position: relative;
+}
+
 .visa-photo-frame::after {
   content: "";
   position: absolute;

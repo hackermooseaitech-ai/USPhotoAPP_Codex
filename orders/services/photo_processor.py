@@ -87,6 +87,7 @@ def render_visa_photo(
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
     final = _replace_edge_background_safely(final, background_color, render_notes)
+    final = _add_output_border(final)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final, background_color)
 
@@ -489,6 +490,13 @@ def _make_4x6_print_template(photo: Image.Image, background_color: str = DEFAULT
     for position in positions:
         canvas.paste(photo, position)
     return canvas
+
+
+def _add_output_border(image: Image.Image) -> Image.Image:
+    image = image.convert("RGB")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, image.width - 1, image.height - 1), outline="#FFFFFF", width=1)
+    return image
 
 
 def _jpeg_file(image: Image.Image, filename: str, quality: int = 95) -> ContentFile:

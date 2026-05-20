@@ -32,16 +32,35 @@
       {% endif %}
       {% if order.processed_image %}
         <div class="mt-6 grid gap-5 md:grid-cols-[220px_minmax(0,1fr)]">
-          <div>
-            <img
-              class="aspect-square w-full rounded-md border border-zinc-200 bg-white object-cover shadow-sm"
-              src="{% url 'orders:final_photo' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}"
-              alt="Final cropped visa photo"
-            >
+          <div class="space-y-4">
+            {% if order.selected_package != "print" %}
+              <div>
+                <div class="visa-photo-frame aspect-square w-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm">
+                  <img
+                    class="h-full w-full object-cover"
+                    src="{% url 'orders:final_photo' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}"
+                    alt="Final cropped 2x2 visa photo"
+                  >
+                </div>
+                <p class="mt-2 text-center text-xs font-semibold text-zinc-500">2x2 photo</p>
+              </div>
+            {% endif %}
+            {% if order.selected_package != "photo" %}
+              <div>
+                <div class="visa-photo-frame aspect-[3/2] w-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm">
+                  <img
+                    class="h-full w-full object-cover"
+                    src="{% url 'orders:print_template' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}"
+                    alt="Final 4x6 print template"
+                  >
+                </div>
+                <p class="mt-2 text-center text-xs font-semibold text-zinc-500">4x6 print sheet</p>
+              </div>
+            {% endif %}
           </div>
           <div class="rounded-md border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
             <div class="font-semibold">High-resolution photo preview</div>
-            <p class="mt-2">This is the clean cropped photo without the preview watermark.</p>
+            <p class="mt-2">The 2x2 photo includes a thin white border. The 4x6 sheet is made from six copies of that 2x2 photo.</p>
           </div>
         </div>
       {% endif %}

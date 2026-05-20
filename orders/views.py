@@ -408,6 +408,22 @@ def final_photo_file(request, order_id):
     return response
 
 
+def print_template_file(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.status != Order.Status.PAID or not order.print_template:
+        raise Http404("Print template is not available.")
+    if order.selected_package == Order.Package.PHOTO:
+        raise Http404("This package does not include the 4x6 print sheet.")
+
+    filename = Path(order.print_template.name).name
+    try:
+        response = FileResponse(order.print_template.open("rb"), filename=filename)
+    except FileNotFoundError:
+        raise Http404("Print template file is no longer available.")
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 def download_file(request, order_id, kind):
     order = get_object_or_404(Order, id=order_id)
     if order.status != Order.Status.PAID:
