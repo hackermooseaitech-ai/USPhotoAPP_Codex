@@ -83,6 +83,14 @@
   accent-color: rgb(4 120 87);
 }
 
+.visa-photo-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgb(255 255 255 / 0.95);
+}
+
 .visa-range::-webkit-slider-runnable-track {
   height: 0.5rem;
   border-radius: 999px;

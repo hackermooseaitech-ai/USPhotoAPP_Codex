@@ -98,6 +98,9 @@ def upload_photo(request):
         return render(request, "orders/_upload_form.html", {"form": form}, status=422)
 
     order = form.save()
+    if order.background != Order.Background.WHITE:
+        order.background = Order.Background.WHITE
+        order.save(update_fields=["background", "updated_at"])
     prepared = prepare_photo_source(order.original_image, background_color=_order_background_color(order))
     version = order.updated_at.strftime("%Y%m%d%H%M%S")
     order.prepared_image.save(f"{order.id}-{version}-prepared.jpg", prepared.prepared_jpeg, save=False)
