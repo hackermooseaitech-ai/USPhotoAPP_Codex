@@ -56,22 +56,34 @@ PACKAGE_OPTIONS = {
 def index(request):
     providers = settings.SOCIALACCOUNT_PROVIDERS
     social_login = None
+    delivery_email = _user_delivery_email(request.user)
     if request.user.is_authenticated:
         account = request.user.socialaccount_set.order_by("-id").first()
         if account:
             social_login = {
                 "provider": account.get_provider().name,
-                "email": account.extra_data.get("email") or request.user.email or request.user.username,
+                "email": delivery_email or request.user.username,
             }
     return render(
         request,
         "orders/index.html",
         {
-            "form": PhotoUploadForm(),
+            "form": PhotoUploadForm(initial={"email": delivery_email} if delivery_email else None),
             "google_oauth_ready": bool(providers.get("google", {}).get("APPS")),
             "social_login": social_login,
         },
     )
+
+
+def _user_delivery_email(user):
+    if not user.is_authenticated:
+        return ""
+    if user.email:
+        return user.email
+    account = user.socialaccount_set.filter(provider="google").order_by("-id").first()
+    if account:
+        return account.extra_data.get("email", "")
+    return ""
 
 
 @require_POST
