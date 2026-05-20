@@ -100,11 +100,23 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
         from rembg import remove
     except Exception:
         notes.append("rembg is not installed; used OpenCV person segmentation fallback.")
-        return _remove_background_with_grabcut(image, notes, background_color)
+        try:
+            return _remove_background_with_grabcut(image, notes, background_color)
+        except Exception:
+            notes.append("OpenCV background replacement failed safely; original photo was kept.")
+            return _paste_on_background(image, background_color)
 
-    result = remove(image)
-    if not isinstance(result, Image.Image):
-        result = Image.open(BytesIO(result))
+    try:
+        result = remove(image)
+        if not isinstance(result, Image.Image):
+            result = Image.open(BytesIO(result))
+    except Exception:
+        notes.append("rembg failed; used OpenCV person segmentation fallback.")
+        try:
+            return _remove_background_with_grabcut(image, notes, background_color)
+        except Exception:
+            notes.append("OpenCV background replacement failed safely; original photo was kept.")
+            return _paste_on_background(image, background_color)
 
     result = ImageOps.exif_transpose(result).convert("RGBA")
     canvas = Image.new("RGBA", result.size, background_color)
@@ -138,6 +150,9 @@ def _remove_background_with_grabcut(image: Image.Image, notes: list[str], backgr
 
     subject_mask = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype("uint8")
     subject_mask = _refine_subject_mask(subject_mask, cv2, np)
+    if not _has_usable_subject_mask(subject_mask, np):
+        notes.append("OpenCV GrabCut produced an unusable subject mask; original photo was kept.")
+        return _paste_on_background(image, background_color)
 
     subject = Image.fromarray(array).convert("RGBA")
     alpha = Image.fromarray(subject_mask, mode="L").filter(ImageFilter.GaussianBlur(radius=0.7))
@@ -186,6 +201,11 @@ def _refine_subject_mask(mask, cv2, np):
     cv2.drawContours(refined, [largest], -1, 255, thickness=cv2.FILLED)
     refined = cv2.dilate(refined, kernel, iterations=1)
     return refined
+
+
+def _has_usable_subject_mask(mask, np) -> bool:
+    subject_ratio = float(np.count_nonzero(mask)) / float(mask.size)
+    return 0.08 <= subject_ratio <= 0.88
 
 
 def _detect_face_geometry(image: Image.Image, notes: list[str]) -> FaceGeometry | None:
