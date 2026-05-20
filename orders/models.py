@@ -14,6 +14,11 @@ class Order(models.Model):
         PRINT = "print", "4x6 Print"
         BUNDLE = "bundle", "2x2 + 4x6"
 
+    class Background(models.TextChoices):
+        WHITE = "white", "White"
+        SOFT_WHITE = "soft_white", "Soft white gray"
+        LIGHT_GRAY = "light_gray", "Light off-white gray"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
@@ -29,6 +34,7 @@ class Order(models.Model):
     crop_head_ratio = models.FloatField(default=0.60)
     crop_offset_x = models.FloatField(default=0)
     crop_offset_y = models.FloatField(default=54)
+    background = models.CharField(max_length=16, choices=Background.choices, default=Background.WHITE)
     face_center_x = models.FloatField(null=True, blank=True)
     face_eye_y = models.FloatField(null=True, blank=True)
     face_head_top_y = models.FloatField(null=True, blank=True)

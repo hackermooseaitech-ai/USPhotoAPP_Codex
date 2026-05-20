@@ -11,6 +11,7 @@ TARGET_HEAD_RATIO = 0.60
 TARGET_EYE_HEIGHT_FROM_BOTTOM = 0.64
 MIN_HEAD_RATIO = 0.53
 MAX_HEAD_RATIO = 0.62
+DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 
 
 @dataclass(frozen=True)
@@ -40,23 +41,23 @@ class PreparedPhoto:
     notes: list[str]
 
 
-def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, offset_x: float = 0, offset_y: float = 0) -> ProcessedPhoto:
+def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, offset_x: float = 0, offset_y: float = 0, background_color: str = DEFAULT_BACKGROUND_COLOR) -> ProcessedPhoto:
     image = Image.open(uploaded_file)
     image = ImageOps.exif_transpose(image).convert("RGB")
 
     notes: list[str] = []
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
-    white_background = _remove_background_to_white(image, notes)
+    white_background = _remove_background_to_color(image, notes, background_color)
     face = _detect_face_geometry(white_background, notes)
-    return render_visa_photo(white_background, face, notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y)
+    return render_visa_photo(white_background, face, notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
 
 
-def prepare_photo_source(uploaded_file) -> PreparedPhoto:
+def prepare_photo_source(uploaded_file, background_color: str = DEFAULT_BACKGROUND_COLOR) -> PreparedPhoto:
     image = Image.open(uploaded_file)
     image = ImageOps.exif_transpose(image).convert("RGB")
 
     notes: list[str] = []
-    white_background = _remove_background_to_white(image, notes)
+    white_background = _remove_background_to_color(image, notes, background_color)
     face = _detect_face_geometry(white_background, notes)
     return PreparedPhoto(
         prepared_jpeg=_jpeg_file(white_background, "prepared-photo.jpg", quality=94),
@@ -72,6 +73,7 @@ def render_visa_photo(
     head_ratio: float = TARGET_HEAD_RATIO,
     offset_x: float = 0,
     offset_y: float = 0,
+    background_color: str = DEFAULT_BACKGROUND_COLOR,
 ) -> ProcessedPhoto:
     if isinstance(prepared_file, Image.Image):
         white_background = prepared_file
@@ -81,9 +83,9 @@ def render_visa_photo(
 
     render_notes = list(notes or [])
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
-    final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y)
+    final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
     preview = _add_watermark(final.copy())
-    print_template = _make_4x6_print_template(final)
+    print_template = _make_4x6_print_template(final, background_color)
 
     return ProcessedPhoto(
         final_jpeg=_jpeg_file(final, "visa-photo-600.jpg"),
@@ -93,21 +95,21 @@ def render_visa_photo(
     )
 
 
-def _remove_background_to_white(image: Image.Image, notes: list[str]) -> Image.Image:
+def _remove_background_to_color(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
     try:
         from rembg import remove
     except Exception:
         notes.append("rembg is not installed; background removal was skipped.")
-        return _paste_on_white(image)
+        return _paste_on_background(image, background_color)
 
     result = remove(image)
     if not isinstance(result, Image.Image):
         result = Image.open(BytesIO(result))
 
     result = ImageOps.exif_transpose(result).convert("RGBA")
-    canvas = Image.new("RGBA", result.size, "#FFFFFF")
+    canvas = Image.new("RGBA", result.size, background_color)
     canvas.alpha_composite(result)
-    notes.append("Background removed with rembg and replaced with pure white.")
+    notes.append(f"Background removed with rembg and replaced with {background_color}.")
     return canvas.convert("RGB")
 
 
@@ -206,6 +208,7 @@ def _crop_to_visa_spec(
     head_ratio: float,
     offset_x: float,
     offset_y: float,
+    background_color: str,
 ) -> Image.Image:
     width, height = image.size
 
@@ -214,7 +217,7 @@ def _crop_to_visa_spec(
         zoom_side = base_side * (TARGET_HEAD_RATIO / head_ratio)
         left = (width - zoom_side) / 2 - (offset_x / OUTPUT_SIZE) * zoom_side
         top = max(0, (height - zoom_side) * 0.38) - (offset_y / OUTPUT_SIZE) * zoom_side
-        crop = _safe_square_crop(image, left, top, zoom_side)
+        crop = _safe_square_crop(image, left, top, zoom_side, background_color)
         notes.append(f"Output resized to 600x600 JPEG at 300 DPI with fallback zoom target {head_ratio:.0%}.")
         return crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
 
@@ -225,14 +228,14 @@ def _crop_to_visa_spec(
     left = face.center_x - crop_side / 2 - (offset_x / OUTPUT_SIZE) * crop_side
     top = face.eye_y - (1 - TARGET_EYE_HEIGHT_FROM_BOTTOM) * crop_side - (offset_y / OUTPUT_SIZE) * crop_side
 
-    crop = _safe_square_crop(image, left, top, crop_side)
+    crop = _safe_square_crop(image, left, top, crop_side, background_color)
     final = crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
     effective_eye_from_bottom = TARGET_EYE_HEIGHT_FROM_BOTTOM - (offset_y / OUTPUT_SIZE)
     notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line near {effective_eye_from_bottom:.0%} from the bottom, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
     return final
 
 
-def _safe_square_crop(image: Image.Image, left: float, top: float, side: float) -> Image.Image:
+def _safe_square_crop(image: Image.Image, left: float, top: float, side: float, background_color: str = DEFAULT_BACKGROUND_COLOR) -> Image.Image:
     width, height = image.size
     side = max(1.0, side)
     right = left + side
@@ -244,7 +247,7 @@ def _safe_square_crop(image: Image.Image, left: float, top: float, side: float) 
     pad_bottom = max(0, int(round(bottom - height)))
 
     if any((pad_left, pad_top, pad_right, pad_bottom)):
-        padded = Image.new("RGB", (width + pad_left + pad_right, height + pad_top + pad_bottom), "#FFFFFF")
+        padded = Image.new("RGB", (width + pad_left + pad_right, height + pad_top + pad_bottom), background_color)
         padded.paste(image, (pad_left, pad_top))
         image = padded
         left += pad_left
@@ -274,8 +277,8 @@ def _add_watermark(image: Image.Image) -> Image.Image:
     return locked
 
 
-def _make_4x6_print_template(photo: Image.Image) -> Image.Image:
-    canvas = Image.new("RGB", PRINT_TEMPLATE_SIZE, "#FFFFFF")
+def _make_4x6_print_template(photo: Image.Image, background_color: str = DEFAULT_BACKGROUND_COLOR) -> Image.Image:
+    canvas = Image.new("RGB", PRINT_TEMPLATE_SIZE, background_color)
     photo = photo.resize((600, 600), Image.Resampling.LANCZOS)
     positions = [(0, 0), (600, 0), (1200, 0), (0, 600), (600, 600), (1200, 600)]
     for position in positions:
@@ -289,8 +292,8 @@ def _jpeg_file(image: Image.Image, filename: str, quality: int = 95) -> ContentF
     return ContentFile(buffer.getvalue(), name=filename)
 
 
-def _paste_on_white(image: Image.Image) -> Image.Image:
-    canvas = Image.new("RGB", image.size, "#FFFFFF")
+def _paste_on_background(image: Image.Image, background_color: str) -> Image.Image:
+    canvas = Image.new("RGB", image.size, background_color)
     canvas.paste(image.convert("RGB"))
     return canvas
 

@@ -25,6 +25,11 @@ RATIO_STEP = 0.01
 OFFSET_STEP = 18
 MAX_OFFSET = 96
 DEFAULT_OFFSET_Y = 54
+BACKGROUND_OPTIONS = {
+    Order.Background.WHITE: {"key": Order.Background.WHITE, "label": "白色", "color": "#FFFFFF"},
+    Order.Background.SOFT_WHITE: {"key": Order.Background.SOFT_WHITE, "label": "淺淺白灰色", "color": "#FAFAFA"},
+    Order.Background.LIGHT_GRAY: {"key": Order.Background.LIGHT_GRAY, "label": "淺白灰色", "color": "#F5F5F5"},
+}
 PACKAGE_OPTIONS = {
     Order.Package.PHOTO: {
         "key": Order.Package.PHOTO,
@@ -93,7 +98,7 @@ def upload_photo(request):
         return render(request, "orders/_upload_form.html", {"form": form}, status=422)
 
     order = form.save()
-    prepared = prepare_photo_source(order.original_image)
+    prepared = prepare_photo_source(order.original_image, background_color=_order_background_color(order))
     version = order.updated_at.strftime("%Y%m%d%H%M%S")
     order.prepared_image.save(f"{order.id}-{version}-prepared.jpg", prepared.prepared_jpeg, save=False)
     _set_order_face(order, prepared.face)
@@ -109,7 +114,7 @@ def upload_photo(request):
 
 def edit_photo(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    return render(request, "orders/edit.html", {"order": order})
+    return render(request, "orders/edit.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
 
 
 def packages(request, order_id):
@@ -144,16 +149,27 @@ def adjust_photo(request, order_id):
         order.crop_head_ratio = 0.60
         order.crop_offset_x = 0
         order.crop_offset_y = DEFAULT_OFFSET_Y
+    elif action == "set_background":
+        background = request.POST.get("background", Order.Background.WHITE)
+        if background not in BACKGROUND_OPTIONS:
+            return HttpResponseBadRequest("Invalid background.")
+        order.background = background
+        prepared = prepare_photo_source(order.original_image, background_color=_order_background_color(order))
+        version = order.updated_at.strftime("%Y%m%d%H%M%S")
+        order.prepared_image.save(f"{order.id}-{version}-prepared.jpg", prepared.prepared_jpeg, save=False)
+        _set_order_face(order, prepared.face)
+        _regenerate_order_images(order, base_notes=prepared.notes)
+        return render(request, "orders/_preview_card.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
     else:
         return HttpResponseBadRequest("Unknown adjustment.")
 
     _regenerate_order_images(order)
-    return render(request, "orders/_preview_card.html", {"order": order})
+    return render(request, "orders/_preview_card.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
 
 
 def _regenerate_order_images(order, base_notes=None):
     if order.prepared_image and _order_face(order) is None:
-        prepared = prepare_photo_source(order.prepared_image)
+        prepared = prepare_photo_source(order.prepared_image, background_color=_order_background_color(order))
         _set_order_face(order, prepared.face)
         if base_notes is None:
             base_notes = prepared.notes
@@ -166,6 +182,7 @@ def _regenerate_order_images(order, base_notes=None):
             head_ratio=order.crop_head_ratio,
             offset_x=order.crop_offset_x,
             offset_y=order.crop_offset_y,
+            background_color=_order_background_color(order),
         )
     else:
         processed = process_order_photo(
@@ -173,6 +190,7 @@ def _regenerate_order_images(order, base_notes=None):
             head_ratio=order.crop_head_ratio,
             offset_x=order.crop_offset_x,
             offset_y=order.crop_offset_y,
+            background_color=_order_background_color(order),
         )
     version = order.updated_at.strftime("%Y%m%d%H%M%S")
     order.processed_image.save(f"{order.id}-{version}-visa-photo-600.jpg", processed.final_jpeg, save=False)
@@ -191,6 +209,7 @@ def _regenerate_order_images(order, base_notes=None):
             "crop_head_ratio",
             "crop_offset_x",
             "crop_offset_y",
+            "background",
             "face_center_x",
             "face_eye_y",
             "face_head_top_y",
@@ -223,6 +242,10 @@ def _order_face(order):
         head_top_y=order.face_head_top_y,
         chin_y=order.face_chin_y,
     )
+
+
+def _order_background_color(order):
+    return BACKGROUND_OPTIONS.get(order.background, BACKGROUND_OPTIONS[Order.Background.WHITE])["color"]
 
 
 @require_POST
