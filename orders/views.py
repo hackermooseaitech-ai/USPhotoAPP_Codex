@@ -279,7 +279,6 @@ def create_checkout_session(request, order_id, package):
                 }
             ],
             wallet_options={"link": {"display": "never"}},
-            saved_payment_method_options={"payment_method_save": "disabled"},
             metadata={"order_id": str(order.id), "package": package},
             success_url=f"{settings.SITE_URL}{reverse('orders:success', args=[order.id])}?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{settings.SITE_URL}{reverse('orders:packages', args=[order.id])}",
