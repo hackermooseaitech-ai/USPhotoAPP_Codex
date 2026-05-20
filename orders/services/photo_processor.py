@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 
+from django.conf import settings
 from django.core.files.base import ContentFile
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 OUTPUT_SIZE = 600
 PRINT_TEMPLATE_SIZE = (1800, 1200)  # 6x4 inches at 300 DPI, landscape.
@@ -96,6 +97,10 @@ def render_visa_photo(
 
 
 def _remove_background_to_color(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
+    if not settings.USE_LOCAL_BACKGROUND_REMOVAL:
+        notes.append("Local background removal is disabled for production stability; original photo was kept.")
+        return _paste_on_background(image, background_color)
+
     try:
         from rembg import remove
     except Exception:
@@ -153,6 +158,8 @@ def _remove_background_with_grabcut(image: Image.Image, notes: list[str], backgr
     if not _has_usable_subject_mask(subject_mask, np):
         notes.append("OpenCV GrabCut produced an unusable subject mask; original photo was kept.")
         return _paste_on_background(image, background_color)
+
+    from PIL import ImageFilter
 
     subject = Image.fromarray(array).convert("RGBA")
     alpha = Image.fromarray(subject_mask, mode="L").filter(ImageFilter.GaussianBlur(radius=0.7))
