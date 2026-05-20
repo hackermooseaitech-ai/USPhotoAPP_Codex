@@ -247,6 +247,8 @@ def _replace_background_from_edges(image: Image.Image, background_color: str, no
     queue: deque[tuple[int, int]] = deque()
 
     def enqueue_if_background(x: int, y: int):
+        if _is_protected_subject_area(x, y, width, height):
+            return
         if (x, y) in visited or not _looks_like_background(pixels[x, y], edge_color):
             return
         visited.add((x, y))
@@ -297,16 +299,33 @@ def _estimate_edge_background_color(image: Image.Image) -> tuple[int, int, int]:
 
 
 def _looks_like_background(pixel: tuple[int, int, int], edge_color: tuple[int, int, int]) -> bool:
-    if _color_distance(pixel, edge_color) <= 62:
-        return True
-    return _is_plain_background_candidate(pixel)
+    if not _is_plain_background_candidate(pixel):
+        return False
+    return _color_distance(pixel, edge_color) <= 48
 
 
 def _is_plain_background_candidate(pixel: tuple[int, int, int]) -> bool:
     r, g, b = pixel
     brightness = (r + g + b) / 3
     chroma = max(r, g, b) - min(r, g, b)
-    return brightness >= 128 and chroma <= 58
+    return brightness >= 158 and chroma <= 46
+
+
+def _is_protected_subject_area(x: int, y: int, width: int, height: int) -> bool:
+    center_x = width / 2
+    normalized_y = y / height
+
+    # Keep the central portrait area untouched. This protects hair, face,
+    # shoulders, jackets, and white shirts from conservative background fill.
+    if normalized_y >= 0.50:
+        shoulder_half_width = min(width * 0.48, width * 0.18 + (normalized_y - 0.50) * width * 0.85)
+        if abs(x - center_x) <= shoulder_half_width:
+            return True
+
+    head_center_y = height * 0.39
+    head_radius_x = width * 0.31
+    head_radius_y = height * 0.36
+    return ((x - center_x) / head_radius_x) ** 2 + ((y - head_center_y) / head_radius_y) ** 2 <= 1.0
 
 
 def _color_distance(first: tuple[int, int, int], second: tuple[int, int, int]) -> float:
