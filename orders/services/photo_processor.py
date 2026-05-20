@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections import deque
 from io import BytesIO
 from pathlib import Path
 
@@ -85,6 +86,7 @@ def render_visa_photo(
     render_notes = list(notes or [])
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
+    final = _replace_edge_background_safely(final, background_color, render_notes)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final, background_color)
 
@@ -340,6 +342,102 @@ def _crop_to_visa_spec(
 def _hex_to_rgb(color: str) -> tuple[int, int, int]:
     color = color.lstrip("#")
     return int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
+
+
+def _replace_edge_background_safely(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image:
+    image = image.convert("RGB")
+    pixels = image.load()
+    width, height = image.size
+    target = _hex_to_rgb(background_color)
+    edge_color = _estimate_edge_color(image)
+    queue: deque[tuple[int, int]] = deque()
+    seen: set[tuple[int, int]] = set()
+
+    def try_enqueue(x: int, y: int):
+        if (x, y) in seen or _is_subject_protected_zone(x, y, width, height):
+            return
+        if not _is_background_candidate(pixels[x, y], edge_color):
+            return
+        seen.add((x, y))
+        queue.append((x, y))
+
+    for x in range(width):
+        try_enqueue(x, 0)
+        try_enqueue(x, height - 1)
+    for y in range(height):
+        try_enqueue(0, y)
+        try_enqueue(width - 1, y)
+
+    while queue:
+        x, y = queue.popleft()
+        pixels[x, y] = target
+        if x > 0:
+            try_enqueue(x - 1, y)
+        if x < width - 1:
+            try_enqueue(x + 1, y)
+        if y > 0:
+            try_enqueue(x, y - 1)
+        if y < height - 1:
+            try_enqueue(x, y + 1)
+
+    if seen:
+        notes.append(f"Safely replaced {len(seen)} edge-connected background pixels with {background_color}.")
+    else:
+        notes.append("No safe edge-connected background area was detected; original background was kept.")
+    return image
+
+
+def _estimate_edge_color(image: Image.Image) -> tuple[int, int, int]:
+    pixels = image.load()
+    width, height = image.size
+    step = max(1, min(width, height) // 24)
+    samples = []
+
+    for x in range(0, width, step):
+        samples.append(pixels[x, 0])
+        samples.append(pixels[x, height - 1])
+    for y in range(0, height, step):
+        samples.append(pixels[0, y])
+        samples.append(pixels[width - 1, y])
+
+    neutral_samples = [pixel for pixel in samples if _is_neutral_light_pixel(pixel)]
+    if len(neutral_samples) >= 6:
+        samples = neutral_samples
+
+    return tuple(sorted(channel)[len(channel) // 2] for channel in zip(*samples))
+
+
+def _is_background_candidate(pixel: tuple[int, int, int], edge_color: tuple[int, int, int]) -> bool:
+    return _is_neutral_light_pixel(pixel) and _rgb_distance(pixel, edge_color) <= 72
+
+
+def _is_neutral_light_pixel(pixel: tuple[int, int, int]) -> bool:
+    r, g, b = pixel
+    brightness = (r + g + b) / 3
+    chroma = max(r, g, b) - min(r, g, b)
+    return brightness >= 135 and chroma <= 70
+
+
+def _rgb_distance(first: tuple[int, int, int], second: tuple[int, int, int]) -> float:
+    return sum((a - b) ** 2 for a, b in zip(first, second)) ** 0.5
+
+
+def _is_subject_protected_zone(x: int, y: int, width: int, height: int) -> bool:
+    center_x = width / 2
+    normalized_y = y / height
+
+    head_center_y = height * 0.40
+    head_radius_x = width * 0.34
+    head_radius_y = height * 0.37
+    in_head_zone = ((x - center_x) / head_radius_x) ** 2 + ((y - head_center_y) / head_radius_y) ** 2 <= 1.0
+    if in_head_zone:
+        return True
+
+    if normalized_y >= 0.50:
+        shoulder_half_width = min(width * 0.49, width * 0.20 + (normalized_y - 0.50) * width * 0.95)
+        return abs(x - center_x) <= shoulder_half_width
+
+    return False
 
 
 def _safe_square_crop(image: Image.Image, left: float, top: float, side: float, background_color: str = DEFAULT_BACKGROUND_COLOR) -> Image.Image:
