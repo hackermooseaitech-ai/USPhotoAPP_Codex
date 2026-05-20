@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from collections import deque
 from io import BytesIO
 from pathlib import Path
 
 from django.core.files.base import ContentFile
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 OUTPUT_SIZE = 600
 PRINT_TEMPLATE_SIZE = (1800, 1200)  # 6x4 inches at 300 DPI, landscape.
@@ -85,7 +84,6 @@ def render_visa_photo(
     render_notes = list(notes or [])
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
-    final = _replace_background_from_edges(final, background_color, render_notes)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final, background_color)
 
@@ -101,8 +99,8 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
     try:
         from rembg import remove
     except Exception:
-        notes.append("rembg is not installed; background removal was skipped.")
-        return _paste_on_background(image, background_color)
+        notes.append("rembg is not installed; used OpenCV person segmentation fallback.")
+        return _remove_background_with_grabcut(image, notes, background_color)
 
     result = remove(image)
     if not isinstance(result, Image.Image):
@@ -113,6 +111,81 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
     canvas.alpha_composite(result)
     notes.append(f"Background removed with rembg and replaced with {background_color}.")
     return canvas.convert("RGB")
+
+
+def _remove_background_with_grabcut(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
+    try:
+        import cv2
+        import numpy as np
+    except Exception:
+        notes.append("OpenCV is not available; background replacement was skipped.")
+        return _paste_on_background(image, background_color)
+
+    rgb = image.convert("RGB")
+    array = np.array(rgb)
+    height, width = array.shape[:2]
+    rect = _grabcut_subject_rect(array, cv2)
+
+    mask = np.zeros((height, width), np.uint8)
+    bg_model = np.zeros((1, 65), np.float64)
+    fg_model = np.zeros((1, 65), np.float64)
+
+    try:
+        cv2.grabCut(array, mask, rect, bg_model, fg_model, 5, cv2.GC_INIT_WITH_RECT)
+    except Exception:
+        notes.append("OpenCV GrabCut failed; background replacement was skipped.")
+        return _paste_on_background(image, background_color)
+
+    subject_mask = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype("uint8")
+    subject_mask = _refine_subject_mask(subject_mask, cv2, np)
+
+    subject = Image.fromarray(array).convert("RGBA")
+    alpha = Image.fromarray(subject_mask, mode="L").filter(ImageFilter.GaussianBlur(radius=0.7))
+    subject.putalpha(alpha)
+
+    canvas = Image.new("RGBA", rgb.size, background_color)
+    canvas.alpha_composite(subject)
+    notes.append(f"Background replaced with OpenCV GrabCut and set to {background_color}.")
+    return canvas.convert("RGB")
+
+
+def _grabcut_subject_rect(array, cv2) -> tuple[int, int, int, int]:
+    height, width = array.shape[:2]
+    gray = cv2.cvtColor(array, cv2.COLOR_RGB2GRAY)
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=5, minSize=(60, 60))
+
+    if len(faces) > 0:
+        x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
+        left = max(1, int(x - w * 1.35))
+        top = max(1, int(y - h * 1.45))
+        right = min(width - 2, int(x + w * 2.35))
+        bottom = min(height - 2, int(y + h * 4.40))
+    else:
+        left = int(width * 0.08)
+        top = int(height * 0.02)
+        right = int(width * 0.92)
+        bottom = int(height * 0.98)
+
+    rect_width = max(2, right - left)
+    rect_height = max(2, bottom - top)
+    return left, top, rect_width, rect_height
+
+
+def _refine_subject_mask(mask, cv2, np):
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return mask
+
+    largest = max(contours, key=cv2.contourArea)
+    refined = np.zeros_like(mask)
+    cv2.drawContours(refined, [largest], -1, 255, thickness=cv2.FILLED)
+    refined = cv2.dilate(refined, kernel, iterations=1)
+    return refined
 
 
 def _detect_face_geometry(image: Image.Image, notes: list[str]) -> FaceGeometry | None:
@@ -235,101 +308,6 @@ def _crop_to_visa_spec(
     effective_eye_from_bottom = TARGET_EYE_HEIGHT_FROM_BOTTOM - (offset_y / OUTPUT_SIZE)
     notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line near {effective_eye_from_bottom:.0%} from the bottom, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
     return final
-
-
-def _replace_background_from_edges(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image:
-    image = image.convert("RGB")
-    pixels = image.load()
-    width, height = image.size
-    target = _hex_to_rgb(background_color)
-    edge_color = _estimate_edge_background_color(image)
-    visited: set[tuple[int, int]] = set()
-    queue: deque[tuple[int, int]] = deque()
-
-    def enqueue_if_background(x: int, y: int):
-        if _is_protected_subject_area(x, y, width, height):
-            return
-        if (x, y) in visited or not _looks_like_background(pixels[x, y], edge_color):
-            return
-        visited.add((x, y))
-        queue.append((x, y))
-
-    for x in range(width):
-        enqueue_if_background(x, 0)
-        enqueue_if_background(x, height - 1)
-    for y in range(height):
-        enqueue_if_background(0, y)
-        enqueue_if_background(width - 1, y)
-
-    while queue:
-        x, y = queue.popleft()
-        pixels[x, y] = target
-        if x > 0:
-            enqueue_if_background(x - 1, y)
-        if x < width - 1:
-            enqueue_if_background(x + 1, y)
-        if y > 0:
-            enqueue_if_background(x, y - 1)
-        if y < height - 1:
-            enqueue_if_background(x, y + 1)
-
-    if visited:
-        notes.append(f"Adjusted {len(visited)} edge-connected background pixels to {background_color}.")
-    return image
-
-
-def _estimate_edge_background_color(image: Image.Image) -> tuple[int, int, int]:
-    width, height = image.size
-    pixels = image.load()
-    samples = []
-    step = max(1, min(width, height) // 30)
-
-    for x in range(0, width, step):
-        samples.append(pixels[x, 0])
-        samples.append(pixels[x, height - 1])
-    for y in range(0, height, step):
-        samples.append(pixels[0, y])
-        samples.append(pixels[width - 1, y])
-
-    neutral_samples = [pixel for pixel in samples if _is_plain_background_candidate(pixel)]
-    if len(neutral_samples) >= 4:
-        samples = neutral_samples
-
-    return tuple(sorted(channel)[len(channel) // 2] for channel in zip(*samples))
-
-
-def _looks_like_background(pixel: tuple[int, int, int], edge_color: tuple[int, int, int]) -> bool:
-    if not _is_plain_background_candidate(pixel):
-        return False
-    return _color_distance(pixel, edge_color) <= 48
-
-
-def _is_plain_background_candidate(pixel: tuple[int, int, int]) -> bool:
-    r, g, b = pixel
-    brightness = (r + g + b) / 3
-    chroma = max(r, g, b) - min(r, g, b)
-    return brightness >= 158 and chroma <= 46
-
-
-def _is_protected_subject_area(x: int, y: int, width: int, height: int) -> bool:
-    center_x = width / 2
-    normalized_y = y / height
-
-    # Keep the central portrait area untouched. This protects hair, face,
-    # shoulders, jackets, and white shirts from conservative background fill.
-    if normalized_y >= 0.50:
-        shoulder_half_width = min(width * 0.48, width * 0.18 + (normalized_y - 0.50) * width * 0.85)
-        if abs(x - center_x) <= shoulder_half_width:
-            return True
-
-    head_center_y = height * 0.39
-    head_radius_x = width * 0.31
-    head_radius_y = height * 0.36
-    return ((x - center_x) / head_radius_x) ** 2 + ((y - head_center_y) / head_radius_y) ** 2 <= 1.0
-
-
-def _color_distance(first: tuple[int, int, int], second: tuple[int, int, int]) -> float:
-    return sum((a - b) ** 2 for a, b in zip(first, second)) ** 0.5
 
 
 def _hex_to_rgb(color: str) -> tuple[int, int, int]:
