@@ -2,6 +2,7 @@ from django.contrib.auth.signals import user_logged_in
 from django.dispatch import receiver
 
 from .models import UserLoginRecord
+from .services.users import sync_user_login
 
 
 def _client_ip(request):
@@ -18,10 +19,12 @@ def _login_provider(user):
 
 @receiver(user_logged_in)
 def record_user_login(sender, request, user, **kwargs):
+    email = user.email or ""
     UserLoginRecord.objects.create(
         user=user,
-        email=user.email or "",
+        email=email,
         provider=_login_provider(user),
         ip_address=_client_ip(request),
         user_agent=request.META.get("HTTP_USER_AGENT", ""),
     )
+    sync_user_login(email)

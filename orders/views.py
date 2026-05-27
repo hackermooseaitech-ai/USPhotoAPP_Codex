@@ -16,6 +16,7 @@ from .forms import PhotoUploadForm
 from .models import Order
 from .services.delivery import delivery_attachment_summary, send_delivery_email, send_test_delivery_email
 from .services.photo_processor import FaceGeometry, prepare_photo_source, process_order_photo, render_visa_photo
+from .services.users import mark_user_paid
 
 logger = logging.getLogger(__name__)
 
@@ -324,6 +325,7 @@ def success(request, order_id):
                         updates["selected_package"] = session_package
                     Order.objects.filter(id=order.id).update(**updates)
                     order.refresh_from_db()
+                    mark_user_paid(order.email)
             except Exception:
                 logger.exception("Could not update paid order from Stripe session for order %s", order.id)
                 if session_is_paid and session_matches_order:
@@ -569,6 +571,7 @@ def stripe_webhook(request):
             )
             order = Order.objects.filter(id=order_id).first()
             if order:
+                mark_user_paid(order.email)
                 send_delivery_email(order)
     elif event["type"] == "checkout.session.async_payment_failed":
         session = event["data"]["object"]
