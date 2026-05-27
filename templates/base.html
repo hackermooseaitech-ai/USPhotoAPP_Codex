@@ -45,7 +45,8 @@
           </div>
         {% else %}
           <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm font-medium text-zinc-700" data-site-i18n="memberLogin">Log In</span>
+            <a class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400" href="{% url 'account_login' %}" data-site-i18n="memberLogin">Log In</a>
+            <a class="rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800" href="{% url 'account_signup' %}" data-site-i18n="signup">Sign up</a>
             <form method="post" action="/accounts/google/login/">
               {% csrf_token %}
               <button class="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-50" type="submit" data-site-i18n="googleLogin" {% if not google_oauth_ready %}disabled{% endif %}>Google</button>
@@ -63,7 +64,7 @@
   <script>
     const siteChromeTranslations = {
       en: {
-        languageLabel: "Language", memberLogin: "Log In", googleLogin: "Google", signedInAs: "Signed in", logout: "Logout",
+        languageLabel: "Language", memberLogin: "Log In", signup: "Sign up", googleLogin: "Google", signedInAs: "Signed in", logout: "Logout",
         editTitle: "Adjust your visa photo", returnButton: "Return", headSize: "Head size", updatingPreview: "Updating preview...", openPreview: "Open preview image", choosePackage: "Choose package",
         previewReady: "Preview ready", previewBody: "This preview is watermarked. Checkout unlocks the clean 600x600 JPEG and 4x6 print template.", payDownload: "Pay and download",
         usRequirements: "US photo requirements", generalSpecs: "General Specifications", recency: "Recency: Taken within the last 6 months.", background: "Background: Plain white or off-white.",
@@ -75,7 +76,7 @@
         emailLabel: "Delivery email", photoLabel: "Portrait photo", cancelButton: "Cancel", uploadNewPhoto: "Upload photo"
       },
       zh: {
-        languageLabel: "語言", memberLogin: "登入", googleLogin: "Google 登入", signedInAs: "已登入", logout: "登出",
+        languageLabel: "語言", memberLogin: "登入", signup: "註冊", googleLogin: "Google 登入", signedInAs: "已登入", logout: "登出",
         editTitle: "調整您的簽證照片", returnButton: "返回", headSize: "頭部大小", updatingPreview: "預覽更新中...", openPreview: "開啟預覽圖片", choosePackage: "選擇方案",
         previewReady: "預覽已完成", previewBody: "此預覽圖含有浮水印。付款後可下載乾淨的 600x600 JPEG 與 4x6 列印模板。", payDownload: "付款並下載",
         usRequirements: "美國簽證照片規格提醒", generalSpecs: "一般規格", recency: "拍攝時間：需為最近 6 個月內拍攝。", background: "背景：純白或近白色背景。",
@@ -87,7 +88,7 @@
         emailLabel: "收件 Email", photoLabel: "人像照片", cancelButton: "取消", uploadNewPhoto: "上傳照片"
       },
       fr: {
-        languageLabel: "Langue", memberLogin: "Connexion", googleLogin: "Google", signedInAs: "Connecté", logout: "Déconnexion",
+        languageLabel: "Langue", memberLogin: "Connexion", signup: "Inscription", googleLogin: "Google", signedInAs: "Connecté", logout: "Déconnexion",
         editTitle: "Ajuster votre photo de visa", returnButton: "Retour", headSize: "Taille de la tête", updatingPreview: "Mise à jour de l'aperçu...", openPreview: "Ouvrir l'aperçu", choosePackage: "Choisir un forfait",
         previewReady: "Aperçu prêt", previewBody: "Cet aperçu contient un filigrane. Le paiement débloque le JPEG 600x600 sans filigrane et le modèle d'impression 4x6.", payDownload: "Payer et télécharger",
         usRequirements: "Exigences photo américaines", generalSpecs: "Spécifications générales", recency: "Date: prise au cours des 6 derniers mois.", background: "Fond: blanc ou blanc cassé uni.",
@@ -99,7 +100,7 @@
         emailLabel: "Email de livraison", photoLabel: "Photo portrait", cancelButton: "Annuler", uploadNewPhoto: "Téléverser"
       },
       ja: {
-        languageLabel: "言語", memberLogin: "ログイン", googleLogin: "Google", signedInAs: "ログイン中", logout: "ログアウト",
+        languageLabel: "言語", memberLogin: "ログイン", signup: "登録", googleLogin: "Google", signedInAs: "ログイン中", logout: "ログアウト",
         editTitle: "ビザ写真を調整", returnButton: "戻る", headSize: "頭部サイズ", updatingPreview: "プレビューを更新中...", openPreview: "プレビュー画像を開く", choosePackage: "プランを選択",
         previewReady: "プレビュー完了", previewBody: "このプレビューには透かしが入っています。決済後、透かしなしの600x600 JPEGと4x6印刷テンプレートを取得できます。", payDownload: "支払い・ダウンロード",
         usRequirements: "米国写真要件", generalSpecs: "一般仕様", recency: "撮影時期：過去6か月以内に撮影。", background: "背景：無地の白またはオフホワイト。",
@@ -111,7 +112,7 @@
         emailLabel: "受信用メール", photoLabel: "人物写真", cancelButton: "キャンセル", uploadNewPhoto: "アップロード"
       },
       ru: {
-        languageLabel: "Язык", memberLogin: "Вход", googleLogin: "Google", signedInAs: "Выполнен вход", logout: "Выйти",
+        languageLabel: "Язык", memberLogin: "Вход", signup: "Регистрация", googleLogin: "Google", signedInAs: "Выполнен вход", logout: "Выйти",
         editTitle: "Настройте фото для визы", returnButton: "Назад", headSize: "Размер головы", updatingPreview: "Обновление предпросмотра...", openPreview: "Открыть предпросмотр", choosePackage: "Выбрать пакет",
         previewReady: "Предпросмотр готов", previewBody: "На предпросмотре есть водяной знак. После оплаты доступны чистый JPEG 600x600 и шаблон печати 4x6.", payDownload: "Оплатить и скачать",
         usRequirements: "Требования к фото США", generalSpecs: "Общие требования", recency: "Срок: фото сделано в течение последних 6 месяцев.", background: "Фон: простой белый или почти белый.",
@@ -123,7 +124,7 @@
         emailLabel: "Email для доставки", photoLabel: "Портретное фото", cancelButton: "Отмена", uploadNewPhoto: "Загрузить"
       },
       ar: {
-        languageLabel: "اللغة", memberLogin: "تسجيل الدخول", googleLogin: "Google", signedInAs: "تم تسجيل الدخول", logout: "تسجيل الخروج",
+        languageLabel: "اللغة", memberLogin: "تسجيل الدخول", signup: "إنشاء حساب", googleLogin: "Google", signedInAs: "تم تسجيل الدخول", logout: "تسجيل الخروج",
         editTitle: "تعديل صورة التأشيرة", returnButton: "رجوع", headSize: "حجم الرأس", updatingPreview: "جار تحديث المعاينة...", openPreview: "فتح صورة المعاينة", choosePackage: "اختيار الباقة",
         previewReady: "المعاينة جاهزة", previewBody: "تحتوي هذه المعاينة على علامة مائية. بعد الدفع يمكنك تنزيل ملف JPEG نظيف 600x600 وقالب طباعة 4x6.", payDownload: "الدفع والتنزيل",
         usRequirements: "متطلبات صورة الولايات المتحدة", generalSpecs: "المواصفات العامة", recency: "الحداثة: يجب أن تكون ملتقطة خلال آخر 6 أشهر.", background: "الخلفية: بيضاء أو قريبة من الأبيض وبسيطة.",

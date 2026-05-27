@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 
@@ -56,3 +57,18 @@ class Order(models.Model):
     @property
     def crop_head_progress_percent(self):
         return round(((self.crop_head_ratio - 0.53) / 0.09) * 100)
+
+
+class UserLoginRecord(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="login_records")
+    email = models.EmailField(blank=True)
+    provider = models.CharField(max_length=64, default="email")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.email or self.user_id} via {self.provider} at {self.created_at:%Y-%m-%d %H:%M:%S}"
