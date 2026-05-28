@@ -110,9 +110,6 @@ def upload_photo(request):
 
 def edit_photo(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    prepared = _prepare_order_source(order)
-    _regenerate_order_images(order, base_notes=prepared.notes)
-    order.refresh_from_db()
     return render(request, "orders/edit.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
 
 
@@ -386,7 +383,10 @@ def preview_file(request, order_id):
         raise Http404("Preview is not available.")
 
     filename = Path(order.preview_image.name).name
-    response = FileResponse(order.preview_image.open("rb"), filename=filename)
+    try:
+        response = FileResponse(order.preview_image.open("rb"), filename=filename)
+    except FileNotFoundError:
+        raise Http404("Preview file is no longer available.")
     response["Cache-Control"] = "no-store"
     return response
 
