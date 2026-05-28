@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 from .forms import PhotoUploadForm
 from .models import Order
 from .services.delivery import delivery_attachment_summary, send_delivery_email, send_test_delivery_email
-from .services.photo_processor import FaceGeometry, prepare_photo_source, process_order_photo, render_visa_photo
+from .services.photo_processor import FaceGeometry, PROCESSOR_VERSION, prepare_photo_source, process_order_photo, render_visa_photo
 from .services.users import mark_user_paid
 
 logger = logging.getLogger(__name__)
@@ -179,7 +179,12 @@ def _preview_context(order, needs_processing=None):
 def _order_needs_processing(order):
     notes = order.processing_notes or ""
     has_background_replacement = "Background removed" in notes or "Background replaced" in notes
-    return not order.preview_image or not has_background_replacement or "original photo was kept" in notes
+    return (
+        not order.preview_image
+        or PROCESSOR_VERSION not in notes
+        or not has_background_replacement
+        or "original photo was kept" in notes
+    )
 
 
 def _prepare_order_source(order):

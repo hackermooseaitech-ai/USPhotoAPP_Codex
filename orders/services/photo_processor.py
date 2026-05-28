@@ -15,6 +15,7 @@ MIN_HEAD_RATIO = 0.53
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
+PROCESSOR_VERSION = "white-bg-v3"
 
 
 @dataclass(frozen=True)
@@ -107,19 +108,19 @@ def render_visa_photo(
 
 
 def _remove_background_to_color(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
+    notes.append(f"Processor version {PROCESSOR_VERSION}.")
     if not settings.USE_LOCAL_BACKGROUND_REMOVAL:
         notes.append("Local background removal is disabled for production stability; original photo was kept.")
         return _paste_on_background(image, background_color)
-
-    fast_background = _replace_uniform_edge_background(image, background_color, notes)
-    if fast_background is not None:
-        return fast_background
 
     if not settings.USE_REMBG_BACKGROUND_REMOVAL:
         try:
             return _remove_background_with_grabcut(image, notes, background_color)
         except Exception:
-            notes.append("OpenCV background replacement failed safely; original photo was kept.")
+            notes.append("OpenCV background replacement failed; trying fast edge replacement fallback.")
+            fast_background = _replace_uniform_edge_background(image, background_color, notes)
+            if fast_background is not None:
+                return fast_background
             return _paste_on_background(image, background_color)
 
     try:
@@ -200,10 +201,10 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
     target = _hex_to_rgb(background_color)
     queue: deque[tuple[int, int]] = deque()
     seen: set[tuple[int, int]] = set()
-    threshold = 92
+    threshold = 82
 
     def try_enqueue(x: int, y: int):
-        if (x, y) in seen or _is_subject_protected_zone(x, y, width, height):
+        if (x, y) in seen:
             return
         if _rgb_distance(pixels[x, y], edge_color) > threshold:
             return
@@ -382,9 +383,9 @@ def _crop_to_visa_spec(
 
     if face is None:
         base_side = min(width, height)
-        zoom_side = base_side * (TARGET_HEAD_RATIO / head_ratio)
+        zoom_side = base_side * 0.74 * (TARGET_HEAD_RATIO / head_ratio)
         left = (width - zoom_side) / 2 - (offset_x / OUTPUT_SIZE) * zoom_side
-        top = max(0, (height - zoom_side) * 0.38) - (offset_y / OUTPUT_SIZE) * zoom_side
+        top = max(0, (height - zoom_side) * 0.30) - (offset_y / OUTPUT_SIZE) * zoom_side
         crop = _safe_square_crop(image, left, top, zoom_side, background_color)
         notes.append(f"Output resized to 600x600 JPEG at 300 DPI with fallback zoom target {head_ratio:.0%}.")
         return crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
