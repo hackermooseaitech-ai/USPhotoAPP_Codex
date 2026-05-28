@@ -9,6 +9,7 @@ urlpatterns = [
     path("upload/", views.upload_photo, name="upload"),
     path("edit/<uuid:order_id>/", views.edit_photo, name="edit"),
     path("adjust/<uuid:order_id>/", views.adjust_photo, name="adjust"),
+    path("process/<uuid:order_id>/", views.process_preview, name="process"),
     path("packages/<uuid:order_id>/", views.packages, name="packages"),
     path("checkout/<uuid:order_id>/<str:package>/", views.create_checkout_session, name="checkout"),
     path("preview/<uuid:order_id>/", views.preview_file, name="preview"),

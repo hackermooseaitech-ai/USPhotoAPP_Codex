@@ -111,7 +111,7 @@ def upload_photo(request):
 
 def edit_photo(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    return render(request, "orders/edit.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
+    return render(request, "orders/edit.html", _preview_context(order))
 
 
 def packages(request, order_id):
@@ -150,7 +150,36 @@ def adjust_photo(request, order_id):
         return HttpResponseBadRequest("Unknown adjustment.")
 
     _regenerate_order_images(order)
-    return render(request, "orders/_preview_card.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
+    return render(request, "orders/_preview_card.html", _preview_context(order, needs_processing=False))
+
+
+@require_POST
+def process_preview(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    try:
+        prepared = _prepare_order_source(order)
+        _regenerate_order_images(order, base_notes=prepared.notes)
+        order.refresh_from_db()
+    except Exception:
+        logger.exception("Could not process preview for order %s", order.id)
+        messages.warning(request, "The preview could not be processed yet. Please try Reload with a smaller photo.")
+    return render(request, "orders/_preview_card.html", _preview_context(order, needs_processing=False))
+
+
+def _preview_context(order, needs_processing=None):
+    if needs_processing is None:
+        needs_processing = _order_needs_processing(order)
+    return {
+        "order": order,
+        "background_options": BACKGROUND_OPTIONS.values(),
+        "needs_processing": needs_processing,
+    }
+
+
+def _order_needs_processing(order):
+    notes = order.processing_notes or ""
+    has_background_replacement = "Background removed" in notes or "Background replaced" in notes
+    return not order.preview_image or not has_background_replacement or "original photo was kept" in notes
 
 
 def _prepare_order_source(order):

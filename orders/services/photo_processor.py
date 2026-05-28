@@ -14,6 +14,7 @@ TARGET_EYE_HEIGHT_FROM_BOTTOM = 0.64
 MIN_HEAD_RATIO = 0.53
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
+MAX_PROCESSING_SIDE = 900
 
 
 @dataclass(frozen=True)
@@ -44,8 +45,7 @@ class PreparedPhoto:
 
 
 def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, offset_x: float = 0, offset_y: float = 0, background_color: str = DEFAULT_BACKGROUND_COLOR) -> ProcessedPhoto:
-    image = Image.open(uploaded_file)
-    image = ImageOps.exif_transpose(image).convert("RGB")
+    image = _load_processing_image(uploaded_file)
 
     notes: list[str] = []
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
@@ -55,8 +55,7 @@ def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, of
 
 
 def prepare_photo_source(uploaded_file, background_color: str = DEFAULT_BACKGROUND_COLOR) -> PreparedPhoto:
-    image = Image.open(uploaded_file)
-    image = ImageOps.exif_transpose(image).convert("RGB")
+    image = _load_processing_image(uploaded_file)
 
     notes: list[str] = []
     white_background = _remove_background_to_color(image, notes, background_color)
@@ -66,6 +65,14 @@ def prepare_photo_source(uploaded_file, background_color: str = DEFAULT_BACKGROU
         face=face,
         notes=notes,
     )
+
+
+def _load_processing_image(uploaded_file) -> Image.Image:
+    image = Image.open(uploaded_file)
+    image = ImageOps.exif_transpose(image).convert("RGB")
+    if max(image.size) > MAX_PROCESSING_SIDE:
+        image.thumbnail((MAX_PROCESSING_SIDE, MAX_PROCESSING_SIDE), Image.Resampling.LANCZOS)
+    return image
 
 
 def render_visa_photo(
@@ -103,6 +110,17 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
     if not settings.USE_LOCAL_BACKGROUND_REMOVAL:
         notes.append("Local background removal is disabled for production stability; original photo was kept.")
         return _paste_on_background(image, background_color)
+
+    fast_background = _replace_uniform_edge_background(image, background_color, notes)
+    if fast_background is not None:
+        return fast_background
+
+    if not settings.USE_REMBG_BACKGROUND_REMOVAL:
+        try:
+            return _remove_background_with_grabcut(image, notes, background_color)
+        except Exception:
+            notes.append("OpenCV background replacement failed safely; original photo was kept.")
+            return _paste_on_background(image, background_color)
 
     try:
         from rembg import remove
@@ -151,7 +169,7 @@ def _remove_background_with_grabcut(image: Image.Image, notes: list[str], backgr
     fg_model = np.zeros((1, 65), np.float64)
 
     try:
-        cv2.grabCut(array, mask, rect, bg_model, fg_model, 5, cv2.GC_INIT_WITH_RECT)
+        cv2.grabCut(array, mask, rect, bg_model, fg_model, 2, cv2.GC_INIT_WITH_RECT)
     except Exception:
         notes.append("OpenCV GrabCut failed; background replacement was skipped.")
         return _paste_on_background(image, background_color)
@@ -172,6 +190,51 @@ def _remove_background_with_grabcut(image: Image.Image, notes: list[str], backgr
     canvas.alpha_composite(subject)
     notes.append(f"Background replaced with OpenCV GrabCut and set to {background_color}.")
     return canvas.convert("RGB")
+
+
+def _replace_uniform_edge_background(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image | None:
+    image = image.convert("RGB")
+    pixels = image.load()
+    width, height = image.size
+    edge_color = _estimate_edge_color(image)
+    target = _hex_to_rgb(background_color)
+    queue: deque[tuple[int, int]] = deque()
+    seen: set[tuple[int, int]] = set()
+    threshold = 92
+
+    def try_enqueue(x: int, y: int):
+        if (x, y) in seen or _is_subject_protected_zone(x, y, width, height):
+            return
+        if _rgb_distance(pixels[x, y], edge_color) > threshold:
+            return
+        seen.add((x, y))
+        queue.append((x, y))
+
+    for x in range(width):
+        try_enqueue(x, 0)
+        try_enqueue(x, height - 1)
+    for y in range(height):
+        try_enqueue(0, y)
+        try_enqueue(width - 1, y)
+
+    while queue:
+        x, y = queue.popleft()
+        if x > 0:
+            try_enqueue(x - 1, y)
+        if x < width - 1:
+            try_enqueue(x + 1, y)
+        if y > 0:
+            try_enqueue(x, y - 1)
+        if y < height - 1:
+            try_enqueue(x, y + 1)
+
+    if len(seen) < image.size[0] * image.size[1] * 0.12:
+        return None
+
+    for x, y in seen:
+        pixels[x, y] = target
+    notes.append(f"Fast edge-connected background replacement set {len(seen)} pixels to {background_color}.")
+    return image
 
 
 def _grabcut_subject_rect(array, cv2) -> tuple[int, int, int, int]:

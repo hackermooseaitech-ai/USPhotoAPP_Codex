@@ -1,7 +1,7 @@
 <div class="grid gap-5 md:grid-cols-[300px_minmax(0,1fr)]">
   <div>
     <div class="visa-photo-frame relative aspect-square w-full overflow-hidden rounded-md border border-zinc-200 bg-zinc-100 shadow-sm">
-      {% if order.preview_image %}
+      {% if order.preview_image and not needs_processing %}
         <a href="{% url 'orders:preview' order.id %}?v={{ order.updated_at|date:'YmdHisu' }}" target="_blank" rel="noopener">
           <img
             class="h-full w-full object-cover"
@@ -19,6 +19,11 @@
             loading="eager"
           >
         </a>
+        {% if needs_processing %}
+          <div class="absolute inset-x-3 bottom-3 rounded-md border border-white/70 bg-zinc-950/75 p-3 text-center text-xs font-semibold leading-5 text-white shadow-lg backdrop-blur">
+            Generating white-background USCIS preview...
+          </div>
+        {% endif %}
       {% endif %}
 
       <form
@@ -76,12 +81,22 @@
 
     <a
       class="mt-2 block text-center text-xs font-medium text-zinc-600 underline"
-      href="{% if order.preview_image %}{% url 'orders:preview' order.id %}{% else %}{% url 'orders:original' order.id %}{% endif %}?v={{ order.updated_at|date:'YmdHisu' }}"
+      href="{% if order.preview_image and not needs_processing %}{% url 'orders:preview' order.id %}{% else %}{% url 'orders:original' order.id %}{% endif %}?v={{ order.updated_at|date:'YmdHisu' }}"
       target="_blank"
       rel="noopener"
     >
-      <span data-page-i18n="openPreview">{% if order.preview_image %}Open preview image{% else %}Open uploaded image{% endif %}</span>
+      <span data-page-i18n="openPreview">{% if order.preview_image and not needs_processing %}Open preview image{% else %}Open uploaded image{% endif %}</span>
     </a>
+
+    {% if needs_processing %}
+      <div
+        hx-post="{% url 'orders:process' order.id %}"
+        hx-trigger="load delay:400ms"
+        hx-target="#preview-panel"
+        hx-swap="innerHTML"
+        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+      ></div>
+    {% endif %}
 
   </div>
 
