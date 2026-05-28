@@ -12,6 +12,7 @@ urlpatterns = [
     path("packages/<uuid:order_id>/", views.packages, name="packages"),
     path("checkout/<uuid:order_id>/<str:package>/", views.create_checkout_session, name="checkout"),
     path("preview/<uuid:order_id>/", views.preview_file, name="preview"),
+    path("original/<uuid:order_id>/", views.original_file, name="original"),
     path("final/<uuid:order_id>/", views.final_photo_file, name="final_photo"),
     path("print-template/<uuid:order_id>/", views.print_template_file, name="print_template"),
     path("success/<uuid:order_id>/", views.success, name="success"),

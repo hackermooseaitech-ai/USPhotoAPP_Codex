@@ -97,8 +97,9 @@ def upload_photo(request):
         return render(request, "orders/_upload_form.html", {"form": form}, status=422)
 
     order = form.save()
-    prepared = _prepare_order_source(order)
-    _regenerate_order_images(order, base_notes=prepared.notes)
+    if order.background != Order.Background.WHITE:
+        order.background = Order.Background.WHITE
+        order.save(update_fields=["background", "updated_at"])
 
     edit_url = reverse("orders:edit", args=[order.id])
     if request.headers.get("HX-Request"):
@@ -387,6 +388,20 @@ def preview_file(request, order_id):
         response = FileResponse(order.preview_image.open("rb"), filename=filename)
     except FileNotFoundError:
         raise Http404("Preview file is no longer available.")
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def original_file(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if not order.original_image:
+        raise Http404("Original photo is not available.")
+
+    filename = Path(order.original_image.name).name
+    try:
+        response = FileResponse(order.original_image.open("rb"), filename=filename)
+    except FileNotFoundError:
+        raise Http404("Original photo file is no longer available.")
     response["Cache-Control"] = "no-store"
     return response
 
