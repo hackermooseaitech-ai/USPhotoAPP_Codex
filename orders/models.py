@@ -17,8 +17,6 @@ class Order(models.Model):
 
     class Background(models.TextChoices):
         WHITE = "white", "White"
-        SOFT_WHITE = "soft_white", "Soft white gray"
-        LIGHT_GRAY = "light_gray", "Light off-white gray"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(blank=True)

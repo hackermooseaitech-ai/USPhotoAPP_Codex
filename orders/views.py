@@ -28,8 +28,6 @@ MAX_OFFSET = 96
 DEFAULT_OFFSET_Y = 54
 BACKGROUND_OPTIONS = {
     Order.Background.WHITE: {"key": Order.Background.WHITE, "label": "白色", "color": "#FFFFFF"},
-    Order.Background.SOFT_WHITE: {"key": Order.Background.SOFT_WHITE, "label": "淺淺白灰色", "color": "#F7F7F2"},
-    Order.Background.LIGHT_GRAY: {"key": Order.Background.LIGHT_GRAY, "label": "淺白灰色", "color": "#EEEEEA"},
 }
 PACKAGE_OPTIONS = {
     Order.Package.PHOTO: {
@@ -99,13 +97,7 @@ def upload_photo(request):
         return render(request, "orders/_upload_form.html", {"form": form}, status=422)
 
     order = form.save()
-    if order.background != Order.Background.WHITE:
-        order.background = Order.Background.WHITE
-        order.save(update_fields=["background", "updated_at"])
-    prepared = prepare_photo_source(order.original_image, background_color=_order_background_color(order))
-    version = order.updated_at.strftime("%Y%m%d%H%M%S")
-    order.prepared_image.save(f"{order.id}-{version}-prepared.jpg", prepared.prepared_jpeg, save=False)
-    _set_order_face(order, prepared.face)
+    prepared = _prepare_order_source(order)
     _regenerate_order_images(order, base_notes=prepared.notes)
 
     edit_url = reverse("orders:edit", args=[order.id])
@@ -118,6 +110,9 @@ def upload_photo(request):
 
 def edit_photo(request, order_id):
     order = get_object_or_404(Order, id=order_id)
+    prepared = _prepare_order_source(order)
+    _regenerate_order_images(order, base_notes=prepared.notes)
+    order.refresh_from_db()
     return render(request, "orders/edit.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
 
 
@@ -153,22 +148,22 @@ def adjust_photo(request, order_id):
         order.crop_head_ratio = 0.60
         order.crop_offset_x = 0
         order.crop_offset_y = DEFAULT_OFFSET_Y
-    elif action == "set_background":
-        background = request.POST.get("background", Order.Background.WHITE)
-        if background not in BACKGROUND_OPTIONS:
-            return HttpResponseBadRequest("Invalid background.")
-        order.background = background
-        prepared = prepare_photo_source(order.original_image, background_color=_order_background_color(order))
-        version = order.updated_at.strftime("%Y%m%d%H%M%S")
-        order.prepared_image.save(f"{order.id}-{version}-prepared.jpg", prepared.prepared_jpeg, save=False)
-        _set_order_face(order, prepared.face)
-        _regenerate_order_images(order, base_notes=prepared.notes)
-        return render(request, "orders/_preview_card.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
     else:
         return HttpResponseBadRequest("Unknown adjustment.")
 
     _regenerate_order_images(order)
     return render(request, "orders/_preview_card.html", {"order": order, "background_options": BACKGROUND_OPTIONS.values()})
+
+
+def _prepare_order_source(order):
+    if order.background != Order.Background.WHITE:
+        order.background = Order.Background.WHITE
+    prepared = prepare_photo_source(order.original_image, background_color=_order_background_color(order))
+    version = order.updated_at.strftime("%Y%m%d%H%M%S")
+    order.prepared_image.save(f"{order.id}-{version}-prepared.jpg", prepared.prepared_jpeg, save=False)
+    _set_order_face(order, prepared.face)
+    order.save(update_fields=["background", "prepared_image", "face_center_x", "face_eye_y", "face_head_top_y", "face_chin_y", "updated_at"])
+    return prepared
 
 
 def _regenerate_order_images(order, base_notes=None):
