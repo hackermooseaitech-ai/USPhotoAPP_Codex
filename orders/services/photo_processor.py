@@ -15,7 +15,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v9"
+PROCESSOR_VERSION = "uscis-layout-v10"
 
 
 @dataclass(frozen=True)
@@ -514,21 +514,49 @@ def _replace_edge_background_safely(image: Image.Image, background_color: str, n
 def _estimate_edge_color(image: Image.Image) -> tuple[int, int, int]:
     pixels = image.load()
     width, height = image.size
-    step = max(1, min(width, height) // 24)
+    step = max(1, min(width, height) // 40)
     samples = []
 
-    for x in range(0, width, step):
-        samples.append(pixels[x, 0])
-        samples.append(pixels[x, height - 1])
-    for y in range(0, height, step):
-        samples.append(pixels[0, y])
-        samples.append(pixels[width - 1, y])
+    corner_width = max(8, width // 8)
+    corner_height = max(8, height // 8)
+    regions = [
+        (0, 0, corner_width, corner_height),
+        (width - corner_width, 0, width, corner_height),
+        (0, height - corner_height, corner_width, height),
+        (width - corner_width, height - corner_height, width, height),
+        (0, 0, width, max(8, height // 16)),
+    ]
 
-    neutral_samples = [pixel for pixel in samples if _is_neutral_light_pixel(pixel)]
-    if len(neutral_samples) >= 6:
-        samples = neutral_samples
+    for left, top, right, bottom in regions:
+        for y in range(top, bottom, step):
+            for x in range(left, right, step):
+                pixel = pixels[x, y]
+                if _is_likely_subject_edge_sample(pixel):
+                    continue
+                samples.append(pixel)
+
+    if len(samples) < 8:
+        for x in range(0, width, step):
+            samples.append(pixels[x, 0])
+            samples.append(pixels[x, height - 1])
+        for y in range(0, height, step):
+            samples.append(pixels[0, y])
+            samples.append(pixels[width - 1, y])
 
     return tuple(sorted(channel)[len(channel) // 2] for channel in zip(*samples))
+
+
+def _is_likely_subject_edge_sample(pixel: tuple[int, int, int]) -> bool:
+    r, g, b = pixel
+    brightness = (r + g + b) / 3
+    chroma = max(r, g, b) - min(r, g, b)
+    if brightness <= 45:
+        return True
+    if r < 80 and g < 90 and b < 110:
+        return True
+    if brightness >= 80 and chroma <= 28:
+        return False
+    return False
 
 
 def _is_background_candidate(pixel: tuple[int, int, int], edge_color: tuple[int, int, int]) -> bool:
