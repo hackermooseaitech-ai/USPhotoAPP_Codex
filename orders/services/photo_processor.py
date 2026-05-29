@@ -15,7 +15,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v7"
+PROCESSOR_VERSION = "uscis-layout-v8"
 
 
 @dataclass(frozen=True)
@@ -50,8 +50,8 @@ def process_order_photo(uploaded_file, head_ratio: float = TARGET_HEAD_RATIO, of
 
     notes: list[str] = []
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
-    white_background = _remove_background_to_color(image, notes, background_color)
-    face = _detect_face_geometry(white_background, notes)
+    face = _detect_face_geometry(image, notes)
+    white_background = _remove_background_to_color(image, notes, background_color, protected_face=face)
     return render_visa_photo(white_background, face, notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
 
 
@@ -59,8 +59,8 @@ def prepare_photo_source(uploaded_file, background_color: str = DEFAULT_BACKGROU
     image = _load_processing_image(uploaded_file)
 
     notes: list[str] = []
-    white_background = _remove_background_to_color(image, notes, background_color)
-    face = _detect_face_geometry(white_background, notes)
+    face = _detect_face_geometry(image, notes)
+    white_background = _remove_background_to_color(image, notes, background_color, protected_face=face)
     return PreparedPhoto(
         prepared_jpeg=_jpeg_file(white_background, "prepared-photo.jpg", quality=94),
         face=face,
@@ -106,13 +106,13 @@ def render_visa_photo(
     )
 
 
-def _remove_background_to_color(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
+def _remove_background_to_color(image: Image.Image, notes: list[str], background_color: str, protected_face: FaceGeometry | None = None) -> Image.Image:
     notes.append(f"Processor version {PROCESSOR_VERSION}.")
     if not settings.USE_LOCAL_BACKGROUND_REMOVAL:
         notes.append("Local background removal is disabled for production stability; original photo was kept.")
         return _paste_on_background(image, background_color)
 
-    fast_background = _replace_uniform_edge_background(image, background_color, notes)
+    fast_background = _replace_uniform_edge_background(image, background_color, notes, protected_face=protected_face)
     if fast_background is not None:
         return fast_background
 
@@ -196,7 +196,7 @@ def _remove_background_with_grabcut(image: Image.Image, notes: list[str], backgr
     return canvas.convert("RGB")
 
 
-def _replace_uniform_edge_background(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image | None:
+def _replace_uniform_edge_background(image: Image.Image, background_color: str, notes: list[str], protected_face: FaceGeometry | None = None) -> Image.Image | None:
     image = image.convert("RGB")
     pixels = image.load()
     width, height = image.size
@@ -204,10 +204,13 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
     target = _hex_to_rgb(background_color)
     queue: deque[tuple[int, int]] = deque()
     seen: set[tuple[int, int]] = set()
-    threshold = 25
+    threshold = _edge_replacement_threshold(edge_color)
+    use_face_protection = protected_face is not None and threshold >= 78
 
     def try_enqueue(x: int, y: int):
         if (x, y) in seen:
+            return
+        if use_face_protection and _is_face_protected_pixel(x, y, protected_face):
             return
         if _rgb_distance(pixels[x, y], edge_color) > threshold:
             return
@@ -237,8 +240,29 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
 
     for x, y in seen:
         pixels[x, y] = target
-    notes.append(f"Fast edge-connected background replacement set {len(seen)} pixels to {background_color}.")
+    notes.append(f"Fast edge-connected background replacement set {len(seen)} pixels to {background_color} with threshold {threshold}.")
     return image
+
+
+def _edge_replacement_threshold(edge_color: tuple[int, int, int]) -> int:
+    chroma = max(edge_color) - min(edge_color)
+    brightness = sum(edge_color) / 3
+    if chroma >= 55:
+        return 105
+    if chroma >= 35:
+        return 78
+    if brightness >= 210:
+        return 44
+    return 34
+
+
+def _is_face_protected_pixel(x: int, y: int, face: FaceGeometry) -> bool:
+    head_height = face.head_height
+    center_x = face.center_x
+    center_y = (face.head_top_y + face.chin_y) / 2 + head_height * 0.03
+    radius_x = head_height * 0.42
+    radius_y = head_height * 0.50
+    return ((x - center_x) / radius_x) ** 2 + ((y - center_y) / radius_y) ** 2 <= 1.0
 
 
 def _grabcut_subject_rect(array, cv2) -> tuple[int, int, int, int]:
@@ -346,9 +370,27 @@ def _detect_face_geometry_with_opencv(image: Image.Image, notes: list[str]) -> F
 
     rgb = np.array(image)
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    equalized = cv2.equalizeHist(gray)
+    face_cascade_names = [
+        "haarcascade_frontalface_default.xml",
+        "haarcascade_frontalface_alt2.xml",
+        "haarcascade_frontalface_alt.xml",
+    ]
+    faces = []
+    for cascade_name in face_cascade_names:
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + cascade_name)
+        for scale_factor, min_neighbors in ((1.06, 4), (1.04, 3), (1.10, 3)):
+            faces = face_cascade.detectMultiScale(
+                equalized,
+                scaleFactor=scale_factor,
+                minNeighbors=min_neighbors,
+                minSize=(50, 50),
+            )
+            if len(faces) > 0:
+                break
+        if len(faces) > 0:
+            break
     eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.08, minNeighbors=5, minSize=(80, 80))
 
     if len(faces) == 0:
         notes.append("No face detected with OpenCV; used conservative center crop fallback.")
