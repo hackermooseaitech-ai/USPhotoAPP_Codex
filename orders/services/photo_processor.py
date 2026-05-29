@@ -15,7 +15,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v10"
+PROCESSOR_VERSION = "uscis-layout-v11"
 
 
 @dataclass(frozen=True)
@@ -238,18 +238,6 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
     if len(seen) < image.size[0] * image.size[1] * 0.12:
         return None
 
-    extra_seen = set()
-    if max(edge_color) - min(edge_color) >= 55:
-        for y in range(height):
-            for x in range(width):
-                if (x, y) in seen:
-                    continue
-                if use_face_protection and _is_face_protected_pixel(x, y, protected_face):
-                    continue
-                if _rgb_distance(pixels[x, y], edge_color) <= threshold * 0.72:
-                    extra_seen.add((x, y))
-        seen.update(extra_seen)
-
     for x, y in seen:
         pixels[x, y] = target
     notes.append(f"Fast edge-connected background replacement set {len(seen)} pixels to {background_color} with threshold {threshold}.")
@@ -274,9 +262,14 @@ def _is_face_protected_pixel(x: int, y: int, face: FaceGeometry) -> bool:
     head_height = face.head_height
     center_x = face.center_x
     center_y = (face.head_top_y + face.chin_y) / 2 + head_height * 0.03
-    radius_x = head_height * 0.42
-    radius_y = head_height * 0.50
-    return ((x - center_x) / radius_x) ** 2 + ((y - center_y) / radius_y) ** 2 <= 1.0
+    radius_x = head_height * 0.58
+    radius_y = head_height * 0.62
+    in_head = ((x - center_x) / radius_x) ** 2 + ((y - center_y) / radius_y) ** 2 <= 1.0
+    shoulder_top = face.chin_y - head_height * 0.05
+    shoulder_bottom = face.chin_y + head_height * 1.15
+    shoulder_half_width = head_height * 0.95
+    in_neck_shoulders = shoulder_top <= y <= shoulder_bottom and abs(x - center_x) <= shoulder_half_width
+    return in_head or in_neck_shoulders
 
 
 def _grabcut_subject_rect(array, cv2) -> tuple[int, int, int, int]:
