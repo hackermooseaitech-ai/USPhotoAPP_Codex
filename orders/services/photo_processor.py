@@ -15,7 +15,7 @@ MIN_HEAD_RATIO = 0.53
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "white-bg-v5"
+PROCESSOR_VERSION = "white-bg-v6"
 
 
 @dataclass(frozen=True)
@@ -112,6 +112,10 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
         notes.append("Local background removal is disabled for production stability; original photo was kept.")
         return _paste_on_background(image, background_color)
 
+    fast_background = _replace_uniform_edge_background(image, background_color, notes)
+    if fast_background is not None:
+        return fast_background
+
     if not settings.USE_REMBG_BACKGROUND_REMOVAL:
         try:
             return _remove_background_with_grabcut(image, notes, background_color)
@@ -192,7 +196,7 @@ def _remove_background_with_grabcut(image: Image.Image, notes: list[str], backgr
     return canvas.convert("RGB")
 
 
-def _replace_uniform_edge_background(image: Image.Image, background_color: str, notes: list[str], protected_face: FaceGeometry | None = None) -> Image.Image | None:
+def _replace_uniform_edge_background(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image | None:
     image = image.convert("RGB")
     pixels = image.load()
     width, height = image.size
@@ -200,12 +204,10 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
     target = _hex_to_rgb(background_color)
     queue: deque[tuple[int, int]] = deque()
     seen: set[tuple[int, int]] = set()
-    threshold = 78
+    threshold = 25
 
     def try_enqueue(x: int, y: int):
         if (x, y) in seen:
-            return
-        if protected_face is not None and _is_face_protected_pixel(x, y, protected_face):
             return
         if _rgb_distance(pixels[x, y], edge_color) > threshold:
             return
@@ -237,15 +239,6 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
         pixels[x, y] = target
     notes.append(f"Fast edge-connected background replacement set {len(seen)} pixels to {background_color}.")
     return image
-
-
-def _is_face_protected_pixel(x: int, y: int, face: FaceGeometry) -> bool:
-    head_height = face.head_height
-    center_x = face.center_x
-    center_y = (face.head_top_y + face.chin_y) / 2 + head_height * 0.06
-    radius_x = head_height * 0.34
-    radius_y = head_height * 0.43
-    return ((x - center_x) / radius_x) ** 2 + ((y - center_y) / radius_y) ** 2 <= 1.0
 
 
 def _grabcut_subject_rect(array, cv2) -> tuple[int, int, int, int]:
