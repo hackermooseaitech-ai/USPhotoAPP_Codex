@@ -30,7 +30,7 @@ class Order(models.Model):
     print_template = models.ImageField(upload_to="orders/print_templates/", blank=True)
     s3_key = models.CharField(max_length=512, blank=True)
     processing_notes = models.TextField(blank=True)
-    crop_head_ratio = models.FloatField(default=0.60)
+    crop_head_ratio = models.FloatField(default=0.55)
     crop_offset_x = models.FloatField(default=0)
     crop_offset_y = models.FloatField(default=54)
     background = models.CharField(max_length=16, choices=Background.choices, default=Background.WHITE)

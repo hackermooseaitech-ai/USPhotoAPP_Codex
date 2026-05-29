@@ -20,7 +20,8 @@ from .services.users import mark_user_paid
 
 logger = logging.getLogger(__name__)
 
-MIN_HEAD_RATIO = 0.53
+DEFAULT_HEAD_RATIO = 0.55
+MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 RATIO_STEP = 0.01
 OFFSET_STEP = 18
@@ -143,7 +144,7 @@ def adjust_photo(request, order_id):
     elif action == "move_down":
         order.crop_offset_y = min(MAX_OFFSET, order.crop_offset_y + OFFSET_STEP)
     elif action == "reset":
-        order.crop_head_ratio = 0.60
+        order.crop_head_ratio = DEFAULT_HEAD_RATIO
         order.crop_offset_x = 0
         order.crop_offset_y = DEFAULT_OFFSET_Y
     else:
@@ -157,6 +158,9 @@ def adjust_photo(request, order_id):
 def process_preview(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     try:
+        order.crop_head_ratio = DEFAULT_HEAD_RATIO
+        order.crop_offset_x = 0
+        order.crop_offset_y = 0
         prepared = _prepare_order_source(order)
         _regenerate_order_images(order, base_notes=prepared.notes)
         order.refresh_from_db()
