@@ -15,7 +15,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v8"
+PROCESSOR_VERSION = "uscis-layout-v9"
 
 
 @dataclass(frozen=True)
@@ -238,6 +238,18 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
     if len(seen) < image.size[0] * image.size[1] * 0.12:
         return None
 
+    extra_seen = set()
+    if max(edge_color) - min(edge_color) >= 55:
+        for y in range(height):
+            for x in range(width):
+                if (x, y) in seen:
+                    continue
+                if use_face_protection and _is_face_protected_pixel(x, y, protected_face):
+                    continue
+                if _rgb_distance(pixels[x, y], edge_color) <= threshold * 0.72:
+                    extra_seen.add((x, y))
+        seen.update(extra_seen)
+
     for x, y in seen:
         pixels[x, y] = target
     notes.append(f"Fast edge-connected background replacement set {len(seen)} pixels to {background_color} with threshold {threshold}.")
@@ -247,10 +259,12 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
 def _edge_replacement_threshold(edge_color: tuple[int, int, int]) -> int:
     chroma = max(edge_color) - min(edge_color)
     brightness = sum(edge_color) / 3
+    if chroma >= 90:
+        return 155
     if chroma >= 55:
-        return 105
+        return 130
     if chroma >= 35:
-        return 78
+        return 96
     if brightness >= 210:
         return 44
     return 34
