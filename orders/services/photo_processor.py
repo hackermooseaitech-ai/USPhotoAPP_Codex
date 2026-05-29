@@ -10,12 +10,12 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 OUTPUT_SIZE = 600
 PRINT_TEMPLATE_SIZE = (1800, 1200)  # 6x4 inches at 300 DPI, landscape.
 TARGET_HEAD_RATIO = 0.60
-TARGET_EYE_HEIGHT_FROM_BOTTOM = 0.64
+TARGET_EYE_Y_RATIO = 0.50
 MIN_HEAD_RATIO = 0.53
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "white-bg-v3"
+PROCESSOR_VERSION = "white-bg-v5"
 
 
 @dataclass(frozen=True)
@@ -94,7 +94,6 @@ def render_visa_photo(
     render_notes = list(notes or [])
     head_ratio = min(max(head_ratio, MIN_HEAD_RATIO), MAX_HEAD_RATIO)
     final = _crop_to_visa_spec(white_background, face, render_notes, head_ratio=head_ratio, offset_x=offset_x, offset_y=offset_y, background_color=background_color)
-    final = _replace_edge_background_safely(final, background_color, render_notes)
     final = _add_output_border(final)
     preview = _add_watermark(final.copy())
     print_template = _make_4x6_print_template(final, background_color)
@@ -193,7 +192,7 @@ def _remove_background_with_grabcut(image: Image.Image, notes: list[str], backgr
     return canvas.convert("RGB")
 
 
-def _replace_uniform_edge_background(image: Image.Image, background_color: str, notes: list[str]) -> Image.Image | None:
+def _replace_uniform_edge_background(image: Image.Image, background_color: str, notes: list[str], protected_face: FaceGeometry | None = None) -> Image.Image | None:
     image = image.convert("RGB")
     pixels = image.load()
     width, height = image.size
@@ -201,10 +200,12 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
     target = _hex_to_rgb(background_color)
     queue: deque[tuple[int, int]] = deque()
     seen: set[tuple[int, int]] = set()
-    threshold = 82
+    threshold = 78
 
     def try_enqueue(x: int, y: int):
         if (x, y) in seen:
+            return
+        if protected_face is not None and _is_face_protected_pixel(x, y, protected_face):
             return
         if _rgb_distance(pixels[x, y], edge_color) > threshold:
             return
@@ -236,6 +237,15 @@ def _replace_uniform_edge_background(image: Image.Image, background_color: str, 
         pixels[x, y] = target
     notes.append(f"Fast edge-connected background replacement set {len(seen)} pixels to {background_color}.")
     return image
+
+
+def _is_face_protected_pixel(x: int, y: int, face: FaceGeometry) -> bool:
+    head_height = face.head_height
+    center_x = face.center_x
+    center_y = (face.head_top_y + face.chin_y) / 2 + head_height * 0.06
+    radius_x = head_height * 0.34
+    radius_y = head_height * 0.43
+    return ((x - center_x) / radius_x) ** 2 + ((y - center_y) / radius_y) ** 2 <= 1.0
 
 
 def _grabcut_subject_rect(array, cv2) -> tuple[int, int, int, int]:
@@ -395,12 +405,12 @@ def _crop_to_visa_spec(
     crop_side = min(max(face.head_height / head_ratio, min_side_for_face), max_side_for_face)
 
     left = face.center_x - crop_side / 2 - (offset_x / OUTPUT_SIZE) * crop_side
-    top = face.eye_y - (1 - TARGET_EYE_HEIGHT_FROM_BOTTOM) * crop_side - (offset_y / OUTPUT_SIZE) * crop_side
+    top = face.eye_y - TARGET_EYE_Y_RATIO * crop_side - (offset_y / OUTPUT_SIZE) * crop_side
 
     crop = _safe_square_crop(image, left, top, crop_side, background_color)
     final = crop.resize((OUTPUT_SIZE, OUTPUT_SIZE), Image.Resampling.LANCZOS)
-    effective_eye_from_bottom = TARGET_EYE_HEIGHT_FROM_BOTTOM - (offset_y / OUTPUT_SIZE)
-    notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line near {effective_eye_from_bottom:.0%} from the bottom, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
+    effective_eye_y = TARGET_EYE_Y_RATIO + (offset_y / OUTPUT_SIZE)
+    notes.append(f"Cropped to 600x600 with head height targeted at {head_ratio:.0%}, eye-line near {effective_eye_y:.0%} from the top, and manual offset x={offset_x:.0f}px y={offset_y:.0f}px.")
     return final
 
 
