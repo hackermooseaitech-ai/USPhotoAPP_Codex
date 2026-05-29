@@ -15,7 +15,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v11"
+PROCESSOR_VERSION = "uscis-layout-v12"
 
 
 @dataclass(frozen=True)
@@ -261,15 +261,15 @@ def _edge_replacement_threshold(edge_color: tuple[int, int, int]) -> int:
 def _is_face_protected_pixel(x: int, y: int, face: FaceGeometry) -> bool:
     head_height = face.head_height
     center_x = face.center_x
-    center_y = (face.head_top_y + face.chin_y) / 2 + head_height * 0.03
-    radius_x = head_height * 0.58
-    radius_y = head_height * 0.62
-    in_head = ((x - center_x) / radius_x) ** 2 + ((y - center_y) / radius_y) ** 2 <= 1.0
+    face_center_y = (face.eye_y + face.chin_y) / 2
+    face_radius_x = head_height * 0.30
+    face_radius_y = head_height * 0.38
+    in_face = ((x - center_x) / face_radius_x) ** 2 + ((y - face_center_y) / face_radius_y) ** 2 <= 1.0
     shoulder_top = face.chin_y - head_height * 0.05
     shoulder_bottom = face.chin_y + head_height * 1.15
     shoulder_half_width = head_height * 0.95
     in_neck_shoulders = shoulder_top <= y <= shoulder_bottom and abs(x - center_x) <= shoulder_half_width
-    return in_head or in_neck_shoulders
+    return in_face or in_neck_shoulders
 
 
 def _grabcut_subject_rect(array, cv2) -> tuple[int, int, int, int]:
