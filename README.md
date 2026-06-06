@@ -28,15 +28,17 @@ python manage.py runserver
 
 Open http://127.0.0.1:8000/
 
-## Optional AI Packages
+## AI Background Removal
 
-Python 3.13 support for some native AI packages can lag behind Django/Pillow. The app runs without them, but production-quality face alignment/background removal should install and verify:
+The main requirements install `rembg[cpu]` for portrait background removal. The configured model is `u2net_human_seg`, and the application reuses one model session per Gunicorn worker to avoid loading it for every upload.
+
+MediaPipe remains optional for additional face alignment support:
 
 ```powershell
 pip install -r requirements-ai.txt
 ```
 
-If `mediapipe` is unavailable, the app falls back to a center crop. If `rembg` is unavailable, it keeps the subject photo content and normalizes the canvas/background fill to white where possible.
+If `mediapipe` is unavailable, the app falls back to a center crop. If `rembg` fails, the app uses its edge-connected and OpenCV background-removal fallbacks.
 
 ## Environment
 
@@ -118,6 +120,8 @@ DEFAULT_FROM_EMAIL=Hacker Moose <your-address@gmail.com>
 
 Render can use `render.yaml` directly. For production:
 
+- The build command preloads the configured rembg model into `.u2net`.
+- Keep Gunicorn at one worker on memory-limited instances so the model is not loaded more than once.
 - Set `DATABASE_URL` to Neon Postgres.
 - Set `DJANGO_ALLOWED_HOSTS` to your Render host.
 - Set `SITE_URL` to your public HTTPS URL.
