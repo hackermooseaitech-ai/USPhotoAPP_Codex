@@ -11,4 +11,3 @@ whitenoise>=6.8
 gunicorn>=23.0
 numpy>=2.0
 opencv-python-headless>=4.11
-rembg[cpu]==2.0.75
