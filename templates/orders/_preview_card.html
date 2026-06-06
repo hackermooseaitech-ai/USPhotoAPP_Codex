@@ -90,12 +90,19 @@
 
     {% if needs_processing %}
       <div
+        id="preview-processing-request"
         hx-post="{% url 'orders:process' order.id %}"
         hx-trigger="load delay:400ms"
         hx-target="#preview-panel"
         hx-swap="innerHTML"
         hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+        hx-request='{"timeout":120000}'
+        hx-on::timeout="document.getElementById('preview-processing-error').classList.remove('hidden')"
+        hx-on::response-error="document.getElementById('preview-processing-error').classList.remove('hidden')"
       ></div>
+      <div id="preview-processing-error" class="mt-3 hidden rounded-md border border-red-200 bg-red-50 p-3 text-center text-sm text-red-900">
+        Photo processing timed out. Please reload the photo and try again.
+      </div>
     {% endif %}
 
   </div>

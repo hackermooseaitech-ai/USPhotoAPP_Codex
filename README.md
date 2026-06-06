@@ -30,7 +30,7 @@ Open http://127.0.0.1:8000/
 
 ## AI Background Removal
 
-The main requirements install `rembg[cpu]` for portrait background removal. The configured model is `u2net_human_seg`, and the application reuses one model session per Gunicorn worker to avoid loading it for every upload.
+The main requirements install `rembg[cpu]` for portrait background removal. The configured model is the lightweight `u2netp`, and the application reuses one model session per Gunicorn worker to fit memory-limited Render instances.
 
 MediaPipe remains optional for additional face alignment support:
 
