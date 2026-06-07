@@ -3,7 +3,7 @@ services:
     name: usphotoapp-codex
     runtime: python
     buildCommand: "pip install -r requirements.txt && python manage.py preload_rembg_model && python manage.py collectstatic --noinput && python manage.py migrate"
-    startCommand: "gunicorn hacker_moose.wsgi:application --workers 1 --threads 2 --timeout 120"
+    startCommand: "gunicorn hacker_moose.wsgi:application --workers 1 --threads 2 --timeout 180"
     envVars:
       - key: DJANGO_DEBUG
         value: "False"
@@ -22,7 +22,7 @@ services:
       - key: USE_REMBG_BACKGROUND_REMOVAL
         value: "True"
       - key: REMBG_MODEL
-        value: "u2netp"
+        value: "u2net_human_seg"
       - key: U2NET_HOME
         value: "/opt/render/project/src/.u2net"
       - key: OMP_NUM_THREADS
