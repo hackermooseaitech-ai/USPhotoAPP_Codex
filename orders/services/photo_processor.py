@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from collections import deque
-from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
@@ -16,7 +15,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v13-rembg"
+PROCESSOR_VERSION = "uscis-layout-v12"
 
 
 @dataclass(frozen=True)
@@ -113,43 +112,46 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
         notes.append("Local background removal is disabled for production stability; original photo was kept.")
         return _paste_on_background(image, background_color)
 
-    if settings.USE_REMBG_BACKGROUND_REMOVAL:
-        try:
-            return _remove_background_with_rembg(image, notes, background_color)
-        except Exception:
-            notes.append("rembg failed; trying local background-removal fallbacks.")
-
     fast_background = _replace_uniform_edge_background(image, background_color, notes, protected_face=protected_face)
     if fast_background is not None:
         return fast_background
 
+    if not settings.USE_REMBG_BACKGROUND_REMOVAL:
+        try:
+            return _remove_background_with_grabcut(image, notes, background_color)
+        except Exception:
+            notes.append("OpenCV background replacement failed; trying fast edge replacement fallback.")
+            fast_background = _replace_uniform_edge_background(image, background_color, notes)
+            if fast_background is not None:
+                return fast_background
+            return _paste_on_background(image, background_color)
+
     try:
-        return _remove_background_with_grabcut(image, notes, background_color)
+        from rembg import remove
     except Exception:
-        notes.append("OpenCV background replacement failed safely; original photo was kept.")
-        return _paste_on_background(image, background_color)
+        notes.append("rembg is not installed; used OpenCV person segmentation fallback.")
+        try:
+            return _remove_background_with_grabcut(image, notes, background_color)
+        except Exception:
+            notes.append("OpenCV background replacement failed safely; original photo was kept.")
+            return _paste_on_background(image, background_color)
 
-
-@lru_cache(maxsize=1)
-def _get_rembg_session():
-    from rembg import new_session
-
-    return new_session(settings.REMBG_MODEL)
-
-
-def _remove_background_with_rembg(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
-    from rembg import remove
-
-    result = remove(image, session=_get_rembg_session())
-    if not isinstance(result, Image.Image):
-        result = Image.open(BytesIO(result))
+    try:
+        result = remove(image)
+        if not isinstance(result, Image.Image):
+            result = Image.open(BytesIO(result))
+    except Exception:
+        notes.append("rembg failed; used OpenCV person segmentation fallback.")
+        try:
+            return _remove_background_with_grabcut(image, notes, background_color)
+        except Exception:
+            notes.append("OpenCV background replacement failed safely; original photo was kept.")
+            return _paste_on_background(image, background_color)
 
     result = ImageOps.exif_transpose(result).convert("RGBA")
     canvas = Image.new("RGBA", result.size, background_color)
     canvas.alpha_composite(result)
-    notes.append(
-        f"Background removed with rembg model {settings.REMBG_MODEL} and replaced with {background_color}."
-    )
+    notes.append(f"Background removed with rembg and replaced with {background_color}.")
     return canvas.convert("RGB")
 
 

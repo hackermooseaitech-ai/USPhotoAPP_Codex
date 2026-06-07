@@ -182,5 +182,4 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", DEFAULT_FROM_EMAIL).strip()
 ADMIN_TEST_TOKEN = os.getenv("ADMIN_TEST_TOKEN", "").strip()
 USE_LOCAL_BACKGROUND_REMOVAL = os.getenv("USE_LOCAL_BACKGROUND_REMOVAL", "True").lower() == "true"
-USE_REMBG_BACKGROUND_REMOVAL = os.getenv("USE_REMBG_BACKGROUND_REMOVAL", "True").lower() == "true"
-REMBG_MODEL = os.getenv("REMBG_MODEL", "u2net_human_seg").strip()
+USE_REMBG_BACKGROUND_REMOVAL = os.getenv("USE_REMBG_BACKGROUND_REMOVAL", "False").lower() == "true"
