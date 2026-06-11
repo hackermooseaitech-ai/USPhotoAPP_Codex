@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from collections import deque
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
@@ -14,8 +15,8 @@ TARGET_EYE_Y_RATIO = 0.50
 MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
-MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v12"
+MAX_PROCESSING_SIDE = 700
+PROCESSOR_VERSION = "uscis-layout-v13-hair-matting"
 
 
 @dataclass(frozen=True)
@@ -112,47 +113,76 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
         notes.append("Local background removal is disabled for production stability; original photo was kept.")
         return _paste_on_background(image, background_color)
 
+    if settings.USE_REMBG_BACKGROUND_REMOVAL:
+        try:
+            return _remove_background_with_rembg(image, notes, background_color)
+        except Exception:
+            notes.append("U2Net portrait segmentation failed; trying local background-removal fallbacks.")
+
     fast_background = _replace_uniform_edge_background(image, background_color, notes, protected_face=protected_face)
     if fast_background is not None:
         return fast_background
 
-    if not settings.USE_REMBG_BACKGROUND_REMOVAL:
-        try:
-            return _remove_background_with_grabcut(image, notes, background_color)
-        except Exception:
-            notes.append("OpenCV background replacement failed; trying fast edge replacement fallback.")
-            fast_background = _replace_uniform_edge_background(image, background_color, notes)
-            if fast_background is not None:
-                return fast_background
-            return _paste_on_background(image, background_color)
-
     try:
-        from rembg import remove
+        return _remove_background_with_grabcut(image, notes, background_color)
     except Exception:
-        notes.append("rembg is not installed; used OpenCV person segmentation fallback.")
-        try:
-            return _remove_background_with_grabcut(image, notes, background_color)
-        except Exception:
-            notes.append("OpenCV background replacement failed safely; original photo was kept.")
-            return _paste_on_background(image, background_color)
+        notes.append("OpenCV background replacement failed safely; original photo was kept.")
+        return _paste_on_background(image, background_color)
 
-    try:
-        result = remove(image)
-        if not isinstance(result, Image.Image):
-            result = Image.open(BytesIO(result))
-    except Exception:
-        notes.append("rembg failed; used OpenCV person segmentation fallback.")
-        try:
-            return _remove_background_with_grabcut(image, notes, background_color)
-        except Exception:
-            notes.append("OpenCV background replacement failed safely; original photo was kept.")
-            return _paste_on_background(image, background_color)
+
+@lru_cache(maxsize=1)
+def _get_rembg_session():
+    from rembg import new_session
+
+    return new_session(settings.REMBG_MODEL)
+
+
+def _remove_background_with_rembg(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
+    from rembg import remove
+
+    result = remove(
+        image,
+        session=_get_rembg_session(),
+        alpha_matting=True,
+        alpha_matting_foreground_threshold=235,
+        alpha_matting_background_threshold=15,
+        alpha_matting_erode_size=5,
+        post_process_mask=True,
+    )
+    if not isinstance(result, Image.Image):
+        result = Image.open(BytesIO(result))
 
     result = ImageOps.exif_transpose(result).convert("RGBA")
+    result = _decontaminate_translucent_edges(result, _estimate_edge_color(image))
     canvas = Image.new("RGBA", result.size, background_color)
     canvas.alpha_composite(result)
-    notes.append(f"Background removed with rembg and replaced with {background_color}.")
+    notes.append(
+        f"Background removed locally with rembg model {settings.REMBG_MODEL}, "
+        f"hair alpha matting, and edge decontamination; replaced with {background_color}."
+    )
     return canvas.convert("RGB")
+
+
+def _decontaminate_translucent_edges(subject: Image.Image, old_background: tuple[int, int, int]) -> Image.Image:
+    """Reduce old-background color carried by semi-transparent hair pixels."""
+    import numpy as np
+
+    rgba = np.asarray(subject, dtype=np.float32).copy()
+    alpha = rgba[:, :, 3:4] / 255.0
+    translucent = (alpha > 0.04) & (alpha < 0.98)
+    if not translucent.any():
+        return subject
+
+    background = np.asarray(old_background, dtype=np.float32).reshape((1, 1, 3))
+    safe_alpha = np.maximum(alpha, 0.12)
+    recovered = (rgba[:, :, :3] - ((1.0 - alpha) * background)) / safe_alpha
+    recovered = np.clip(recovered, 0, 255)
+
+    # Stronger cleanup at soft edges, while preserving nearly opaque hair color.
+    strength = np.clip((1.0 - alpha) * 0.85, 0.0, 0.72)
+    corrected = (rgba[:, :, :3] * (1.0 - strength)) + (recovered * strength)
+    rgba[:, :, :3] = np.where(translucent, corrected, rgba[:, :, :3])
+    return Image.fromarray(np.clip(rgba, 0, 255).astype("uint8"), mode="RGBA")
 
 
 def _remove_background_with_grabcut(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
