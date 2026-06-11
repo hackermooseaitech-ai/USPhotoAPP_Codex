@@ -22,7 +22,7 @@ services:
       - key: USE_REMBG_BACKGROUND_REMOVAL
         value: "True"
       - key: REMBG_MODEL
-        value: "u2netp"
+        value: "u2net_human_seg"
       - key: U2NET_HOME
         value: "/opt/render/project/src/.u2net"
       - key: OMP_NUM_THREADS

@@ -15,8 +15,8 @@ TARGET_EYE_Y_RATIO = 0.50
 MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
-MAX_PROCESSING_SIDE = 700
-PROCESSOR_VERSION = "uscis-layout-v13-hair-matting"
+MAX_PROCESSING_SIDE = 900
+PROCESSOR_VERSION = "uscis-layout-v14-human-hair-matting"
 
 
 @dataclass(frozen=True)
@@ -132,9 +132,17 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
 
 @lru_cache(maxsize=1)
 def _get_rembg_session():
+    import onnxruntime as ort
     from rembg import new_session
 
-    return new_session(settings.REMBG_MODEL)
+    session_options = ort.SessionOptions()
+    session_options.enable_cpu_mem_arena = False
+    session_options.enable_mem_pattern = False
+    session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+    session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
+    session_options.intra_op_num_threads = 2
+    session_options.inter_op_num_threads = 1
+    return new_session(settings.REMBG_MODEL, session_options)
 
 
 def _remove_background_with_rembg(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
@@ -144,10 +152,10 @@ def _remove_background_with_rembg(image: Image.Image, notes: list[str], backgrou
         image,
         session=_get_rembg_session(),
         alpha_matting=True,
-        alpha_matting_foreground_threshold=235,
-        alpha_matting_background_threshold=15,
-        alpha_matting_erode_size=5,
-        post_process_mask=True,
+        alpha_matting_foreground_threshold=225,
+        alpha_matting_background_threshold=10,
+        alpha_matting_erode_size=1,
+        post_process_mask=False,
     )
     if not isinstance(result, Image.Image):
         result = Image.open(BytesIO(result))
@@ -178,8 +186,8 @@ def _decontaminate_translucent_edges(subject: Image.Image, old_background: tuple
     recovered = (rgba[:, :, :3] - ((1.0 - alpha) * background)) / safe_alpha
     recovered = np.clip(recovered, 0, 255)
 
-    # Stronger cleanup at soft edges, while preserving nearly opaque hair color.
-    strength = np.clip((1.0 - alpha) * 0.85, 0.0, 0.72)
+    # Clean color spill conservatively so wispy hair remains translucent.
+    strength = np.clip((1.0 - alpha) * 0.58, 0.0, 0.48)
     corrected = (rgba[:, :, :3] * (1.0 - strength)) + (recovered * strength)
     rgba[:, :, :3] = np.where(translucent, corrected, rgba[:, :, :3])
     return Image.fromarray(np.clip(rgba, 0, 255).astype("uint8"), mode="RGBA")
