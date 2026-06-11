@@ -16,7 +16,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v14-human-hair-matting"
+PROCESSOR_VERSION = "uscis-layout-v15-hair-recovery"
 
 
 @dataclass(frozen=True)
@@ -115,7 +115,7 @@ def _remove_background_to_color(image: Image.Image, notes: list[str], background
 
     if settings.USE_REMBG_BACKGROUND_REMOVAL:
         try:
-            return _remove_background_with_rembg(image, notes, background_color)
+            return _remove_background_with_rembg(image, notes, background_color, face=protected_face)
         except Exception:
             notes.append("U2Net portrait segmentation failed; trying local background-removal fallbacks.")
 
@@ -145,7 +145,12 @@ def _get_rembg_session():
     return new_session(settings.REMBG_MODEL, session_options)
 
 
-def _remove_background_with_rembg(image: Image.Image, notes: list[str], background_color: str) -> Image.Image:
+def _remove_background_with_rembg(
+    image: Image.Image,
+    notes: list[str],
+    background_color: str,
+    face: FaceGeometry | None = None,
+) -> Image.Image:
     from rembg import remove
 
     result = remove(
@@ -161,18 +166,159 @@ def _remove_background_with_rembg(image: Image.Image, notes: list[str], backgrou
         result = Image.open(BytesIO(result))
 
     result = ImageOps.exif_transpose(result).convert("RGBA")
-    result = _decontaminate_translucent_edges(result, _estimate_edge_color(image))
+    old_background = _estimate_edge_color(image)
+    result = _suppress_background_halo(image, result, old_background)
+    if face is not None:
+        result = _recover_hair_boundary(image, result, face, old_background)
+    result = _decontaminate_translucent_edges(result, old_background, face=face)
     canvas = Image.new("RGBA", result.size, background_color)
     canvas.alpha_composite(result)
     notes.append(
         f"Background removed locally with rembg model {settings.REMBG_MODEL}, "
-        f"hair alpha matting, and edge decontamination; replaced with {background_color}."
+        f"hair-region recovery, alpha matting, and edge decontamination; replaced with {background_color}."
     )
     return canvas.convert("RGB")
 
 
-def _decontaminate_translucent_edges(subject: Image.Image, old_background: tuple[int, int, int]) -> Image.Image:
+def _suppress_background_halo(
+    source: Image.Image,
+    subject: Image.Image,
+    old_background: tuple[int, int, int],
+) -> Image.Image:
+    """Remove backdrop-colored translucency before recovering fine hair."""
+    import cv2
+    import numpy as np
+
+    source_rgb = np.asarray(source.convert("RGB"), dtype=np.float32)
+    rgba = np.asarray(subject, dtype=np.float32).copy()
+    alpha = rgba[:, :, 3] / 255.0
+    background = np.asarray(old_background, dtype=np.float32).reshape((1, 1, 3))
+    color_distance = np.linalg.norm(source_rgb - background, axis=2)
+
+    # Inside the subject is trusted. At the outer 3-5 px boundary, alpha must
+    # also be supported by a visible color difference from the backdrop.
+    foreground_confidence = np.clip((color_distance - 30.0) / 48.0, 0.0, 1.0)
+    foreground_confidence = cv2.GaussianBlur(
+        foreground_confidence.astype(np.float32),
+        (0, 0),
+        sigmaX=0.55,
+        sigmaY=0.55,
+    )
+    subject_mask = (alpha >= 0.20).astype(np.uint8)
+    boundary_radius = max(2, min(5, int(round(min(alpha.shape) * 0.009))))
+    boundary_kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE,
+        ((boundary_radius * 2) + 1, (boundary_radius * 2) + 1),
+    )
+    subject_core = cv2.erode(subject_mask, boundary_kernel, iterations=1)
+    outer_boundary = (subject_mask == 1) & (subject_core == 0)
+    soft_edge = (alpha < 0.96) | outer_boundary
+    cleaned_alpha = alpha.copy()
+    cleaned_alpha[soft_edge] *= foreground_confidence[soft_edge]
+    cleaned_alpha[cleaned_alpha < 0.018] = 0.0
+    rgba[:, :, 3] = np.clip(cleaned_alpha * 255.0, 0, 255)
+    return Image.fromarray(rgba.astype("uint8"), mode="RGBA")
+
+
+def _recover_hair_boundary(
+    source: Image.Image,
+    subject: Image.Image,
+    face: FaceGeometry,
+    old_background: tuple[int, int, int],
+) -> Image.Image:
+    """Recover likely hair pixels immediately outside the portrait model mask."""
+    import cv2
+    import numpy as np
+
+    source_rgb = np.asarray(source.convert("RGB"), dtype=np.float32)
+    rgba = np.asarray(subject, dtype=np.float32).copy()
+    alpha = rgba[:, :, 3] / 255.0
+    height, width = alpha.shape
+    head_height = max(face.head_height, height * 0.12)
+
+    x0 = max(0, int(face.center_x - head_height * 0.82))
+    x1 = min(width, int(face.center_x + head_height * 0.82))
+    y0 = max(0, int(face.head_top_y - head_height * 0.18))
+    y1 = min(height, int(face.chin_y + head_height * 0.62))
+    if x1 <= x0 or y1 <= y0:
+        return subject
+
+    region = np.zeros((height, width), dtype=np.uint8)
+    region[y0:y1, x0:x1] = 1
+
+    # Keep recovery close to an already detected person, preventing unrelated
+    # dark background objects from being interpreted as hair.
+    solid_subject = (alpha >= 0.42).astype(np.uint8)
+    radius = max(3, min(11, int(round(head_height * 0.035))))
+    kernel_size = (radius * 2) + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    nearby_subject = cv2.dilate(solid_subject, kernel, iterations=1)
+
+    background = np.asarray(old_background, dtype=np.float32).reshape((1, 1, 3))
+    color_distance = np.linalg.norm(source_rgb - background, axis=2)
+
+    yy, xx = np.ogrid[:height, :width]
+    upper_head = yy <= int(face.eye_y + head_height * 0.12)
+    outer_head = np.abs(xx - face.center_x) >= head_height * 0.24
+    hair_sample_zone = (
+        (region == 1)
+        & (solid_subject == 1)
+        & upper_head
+        & (outer_head | (yy <= int(face.eye_y - head_height * 0.12)))
+    )
+    hair_samples = source_rgb[hair_sample_zone]
+    if hair_samples.shape[0] < 24:
+        return subject
+
+    sample_luminance = (
+        hair_samples[:, 0] * 0.2126
+        + hair_samples[:, 1] * 0.7152
+        + hair_samples[:, 2] * 0.0722
+    )
+    darker_samples = hair_samples[sample_luminance <= np.percentile(sample_luminance, 45)]
+    if darker_samples.shape[0] < 12:
+        return subject
+    hair_color = np.median(darker_samples, axis=0).reshape((1, 1, 3))
+    hair_distance = np.linalg.norm(source_rgb - hair_color, axis=2)
+
+    # A recovered pixel must look like the person's sampled hair as well as
+    # differ from the background. This prevents skin and colored backdrops
+    # from expanding into the portrait mask.
+    background_confidence = np.clip((color_distance - 28.0) / 88.0, 0.0, 1.0)
+    hair_confidence = np.clip((94.0 - hair_distance) / 72.0, 0.0, 1.0)
+    color_confidence = background_confidence * hair_confidence
+
+    recovery_zone = (
+        (region == 1)
+        & (nearby_subject == 1)
+        & (alpha < 0.92)
+        & (background_confidence > 0.20)
+        & (hair_confidence > 0.14)
+    )
+    recovered_alpha = cv2.GaussianBlur(
+        (color_confidence * recovery_zone.astype(np.float32)),
+        (0, 0),
+        sigmaX=0.85,
+        sigmaY=0.85,
+    )
+    recovered_alpha = np.clip(recovered_alpha * 0.94, 0.0, 0.94)
+    new_alpha = np.maximum(alpha, recovered_alpha)
+
+    # Use original RGB only where pixels were recovered; rembg's foreground
+    # colors remain untouched everywhere else.
+    recovered = new_alpha > (alpha + 0.015)
+    rgba[:, :, :3] = np.where(recovered[:, :, None], source_rgb, rgba[:, :, :3])
+    rgba[:, :, 3] = new_alpha * 255.0
+    return Image.fromarray(np.clip(rgba, 0, 255).astype("uint8"), mode="RGBA")
+
+
+def _decontaminate_translucent_edges(
+    subject: Image.Image,
+    old_background: tuple[int, int, int],
+    face: FaceGeometry | None = None,
+) -> Image.Image:
     """Reduce old-background color carried by semi-transparent hair pixels."""
+    import cv2
     import numpy as np
 
     rgba = np.asarray(subject, dtype=np.float32).copy()
@@ -186,10 +332,79 @@ def _decontaminate_translucent_edges(subject: Image.Image, old_background: tuple
     recovered = (rgba[:, :, :3] - ((1.0 - alpha) * background)) / safe_alpha
     recovered = np.clip(recovered, 0, 255)
 
-    # Clean color spill conservatively so wispy hair remains translucent.
-    strength = np.clip((1.0 - alpha) * 0.58, 0.0, 0.48)
+    # Hair can carry much more background color than solid skin or clothing.
+    # Increase color cleanup inside the head/hair region without hardening alpha.
+    base_strength = np.clip((1.0 - alpha) * 0.58, 0.0, 0.48)
+    if face is not None:
+        height, width = alpha.shape[:2]
+        head_height = max(face.head_height, height * 0.12)
+        yy, xx = np.ogrid[:height, :width]
+        hair_region = (
+            (np.abs(xx - face.center_x) <= head_height * 0.84)
+            & (yy >= face.head_top_y - head_height * 0.18)
+            & (yy <= face.chin_y + head_height * 0.62)
+        )
+        hair_boost = np.where(hair_region[:, :, None], 1.42, 1.0)
+        strength = np.clip(base_strength * hair_boost, 0.0, 0.68)
+    else:
+        strength = base_strength
     corrected = (rgba[:, :, :3] * (1.0 - strength)) + (recovered * strength)
     rgba[:, :, :3] = np.where(translucent, corrected, rgba[:, :, :3])
+
+    # Replace residual backdrop-colored edge RGB with nearby opaque foreground
+    # color. This handles real orange/green spill that alpha math alone cannot
+    # remove because the light has already colored the subject boundary.
+    opaque = (alpha[:, :, 0] >= 0.97).astype(np.float32)
+    local_weight = cv2.GaussianBlur(opaque, (0, 0), sigmaX=3.2, sigmaY=3.2)
+    local_color = np.zeros_like(rgba[:, :, :3])
+    for channel in range(3):
+        weighted = cv2.GaussianBlur(
+            rgba[:, :, channel] * opaque,
+            (0, 0),
+            sigmaX=3.2,
+            sigmaY=3.2,
+        )
+        local_color[:, :, channel] = weighted / np.maximum(local_weight, 0.025)
+
+    background = np.asarray(old_background, dtype=np.float32).reshape((1, 1, 3))
+    backdrop_distance = np.linalg.norm(rgba[:, :, :3] - background, axis=2)
+    spill_likelihood = np.clip((78.0 - backdrop_distance) / 58.0, 0.0, 1.0)
+    edge_blend = (
+        spill_likelihood
+        * np.clip((0.995 - alpha[:, :, 0]) * 3.8, 0.0, 0.92)
+        * (local_weight > 0.025)
+    )
+    if face is not None:
+        height, width = alpha.shape[:2]
+        head_height = max(face.head_height, height * 0.12)
+        yy, xx = np.ogrid[:height, :width]
+        hair_region = (
+            (np.abs(xx - face.center_x) <= head_height * 0.86)
+            & (yy >= face.head_top_y - head_height * 0.20)
+            & (yy <= face.chin_y + head_height * 0.60)
+        )
+        subject_mask = (alpha[:, :, 0] >= 0.18).astype(np.uint8)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        subject_core = cv2.erode(subject_mask, kernel, iterations=1)
+        outer_boundary = (subject_mask == 1) & (subject_core == 0)
+        local_luminance = (
+            local_color[:, :, 0] * 0.2126
+            + local_color[:, :, 1] * 0.7152
+            + local_color[:, :, 2] * 0.0722
+        )
+        hair_spill = (
+            hair_region
+            & outer_boundary
+            & (local_luminance < 105.0)
+            & (spill_likelihood > 0.12)
+            & (local_weight > 0.025)
+        )
+        edge_blend = np.maximum(edge_blend, hair_spill.astype(np.float32) * 0.82)
+
+    rgba[:, :, :3] = (
+        rgba[:, :, :3] * (1.0 - edge_blend[:, :, None])
+        + local_color * edge_blend[:, :, None]
+    )
     return Image.fromarray(np.clip(rgba, 0, 255).astype("uint8"), mode="RGBA")
 
 
