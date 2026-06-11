@@ -15,8 +15,8 @@ TARGET_EYE_Y_RATIO = 0.50
 MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
-MAX_PROCESSING_SIDE = 900
-PROCESSOR_VERSION = "uscis-layout-v15-hair-recovery"
+MAX_PROCESSING_SIDE = 700
+PROCESSOR_VERSION = "uscis-layout-v16-stable-hair-mask"
 
 
 @dataclass(frozen=True)
@@ -156,10 +156,7 @@ def _remove_background_with_rembg(
     result = remove(
         image,
         session=_get_rembg_session(),
-        alpha_matting=True,
-        alpha_matting_foreground_threshold=225,
-        alpha_matting_background_threshold=10,
-        alpha_matting_erode_size=1,
+        alpha_matting=False,
         post_process_mask=False,
     )
     if not isinstance(result, Image.Image):
