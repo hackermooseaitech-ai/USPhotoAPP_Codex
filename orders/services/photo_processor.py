@@ -15,8 +15,8 @@ TARGET_EYE_Y_RATIO = 0.50
 MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
-MAX_PROCESSING_SIDE = 700
-PROCESSOR_VERSION = "uscis-layout-v16-stable-hair-mask"
+MAX_PROCESSING_SIDE = 640
+PROCESSOR_VERSION = "uscis-layout-v17-render-safe-hair-mask"
 
 
 @dataclass(frozen=True)
