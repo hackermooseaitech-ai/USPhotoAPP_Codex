@@ -16,7 +16,7 @@ MIN_HEAD_RATIO = 0.50
 MAX_HEAD_RATIO = 0.62
 DEFAULT_BACKGROUND_COLOR = "#FFFFFF"
 MAX_PROCESSING_SIDE = 640
-PROCESSOR_VERSION = "uscis-layout-v17-render-safe-hair-mask"
+PROCESSOR_VERSION = "uscis-layout-v18-render-stable"
 
 
 @dataclass(frozen=True)
